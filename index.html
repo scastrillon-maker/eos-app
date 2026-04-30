@@ -1075,10 +1075,15 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
       <div class="page" id="page-sesiones">
         <div class="page-header">
           <h2>Registro de Sesiones</h2>
-          <button class="btn-primary" onclick="openModal('modal-nueva-sesion')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Nueva sesión
-          </button>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn-secondary" onclick="abrirNuevoPaquete()" id="btn-nuevo-paquete" style="display:none">
+              📋 Nuevo paquete
+            </button>
+            <button class="btn-primary" onclick="openModal('modal-nueva-sesion')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Nueva sesión
+            </button>
+          </div>
         </div>
 
         <!-- Panel ETNV -->
@@ -1166,6 +1171,14 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
 
         <!-- Filtros — se generan dinámicamente según el rol -->
         <div class="stock-filters" id="stock-filters-container"></div>
+
+        <!-- Búsqueda rápida -->
+        <div style="margin-bottom:12px">
+          <input type="text" id="stock-busqueda"
+            placeholder="🔍 Buscar por nombre o código..."
+            oninput="buildStock()"
+            style="width:100%;padding:10px 14px;border:1.5px solid var(--gris-m);border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit">
+        </div>
 
         <div class="table-card">
           <table class="data-table">
@@ -3210,6 +3223,72 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
   </div>
 </div>
 
+<!-- MODAL: NUEVO PAQUETE DE SESIONES -->
+<div class="modal-overlay" id="modal-nuevo-paquete">
+  <div class="modal" style="width:680px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <h3>Nuevo paquete de sesiones</h3>
+      <button class="modal-close" onclick="closeModal('modal-nuevo-paquete')">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+
+      <!-- Importar factura con Claude -->
+      <div style="background:var(--negro);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#fff">📄 Importar factura HIMED con Claude ✨</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">Sube PDF o foto y Claude extrae los datos automáticamente</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <label style="background:#F59E0B;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+            📄 PDF
+            <input type="file" accept=".pdf" style="display:none" onchange="importarFacturaNuevoPaquete(this,'pdf')">
+          </label>
+          <label style="background:#374151;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+            📷 Foto
+            <input type="file" accept="image/*" style="display:none" onchange="importarFacturaNuevoPaquete(this,'imagen')">
+          </label>
+        </div>
+      </div>
+
+      <div id="nuevo-paquete-loading" style="display:none;text-align:center;padding:20px;color:var(--gris)">
+        <div style="font-size:24px;margin-bottom:8px">⏳</div>
+        <div style="font-size:14px">Claude está leyendo la factura...</div>
+      </div>
+
+      <!-- Datos del paciente -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">N° Factura HIMED *</label>
+          <input id="np-factura" type="text" placeholder="CESF3522" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">Fecha factura *</label>
+          <input id="np-fecha" type="date" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">Nombre paciente *</label>
+          <input id="np-nombre" type="text" placeholder="Nombre completo" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">Cédula *</label>
+          <input id="np-cc" type="text" placeholder="71774114" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+        </div>
+      </div>
+
+      <!-- Líneas de procedimiento -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em;margin-bottom:8px">Líneas de procedimiento *</div>
+      <div id="np-lineas-container"></div>
+      <button onclick="agregarLineaNuevoPaquete()" style="width:100%;padding:10px;border:1.5px dashed var(--gris-m);border-radius:8px;background:transparent;color:var(--gris);font-size:13px;cursor:pointer;margin-bottom:16px">
+        + Agregar línea
+      </button>
+
+      <button onclick="confirmarNuevoPaquete()" class="btn-primary" style="width:100%">
+        ✅ Crear paquete(s) y guardar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: HISTORIAL DE SESIONES -->
 <div class="modal-overlay" id="modal-historial">
   <div class="modal" style="width:620px;max-height:88vh;overflow-y:auto">
@@ -3450,15 +3529,30 @@ function getFallback(codigo) {
   return STOCK_FALLBACK.find(p => p.codigo === codigo) || null;
 }
 
-const SESIONES_DATA = [
-  { cc:'43203672', nombre:'María García',  factura:'CESF-3084', tipo:'Suero HEEL x4',            sesion:2, total:4,  metodo:'Venoclisis estándar',    ampollas:['Traumeel S','Coenzyme','Ubichinon','Engystol'],      estado:'activo',     categoria:'suero', fechaInicio:'2026-04-11' },
-  { cc:'43203672', nombre:'María García',  factura:'CESF-3110', tipo:'Insuflación Rectal x10',    sesion:3, total:10, metodo:'Insuflación rectal',     ampollas:[],                                                   estado:'activo',     categoria:'ozono', fechaInicio:'2026-03-28' },
-  { cc:'71456823', nombre:'Carlos Ruiz',   factura:'CESF-3103', tipo:'Vitamina C Uno',             sesion:1, total:1,  metodo:'Venoclisis 500ml',       ampollas:[],                                                   estado:'activo',     categoria:'suero', fechaInicio:'2026-04-25' },
-  { cc:'52341987', nombre:'Ana Torres',    factura:'CESF-3091', tipo:'Suero HEEL x4',              sesion:3, total:4,  metodo:'Autosanguis',            ampollas:['Traumeel S','Lymphomyosot','Galium Heel','Hormeel'], estado:'activo',     categoria:'suero', fechaInicio:'2026-04-01' },
-  { cc:'52341987', nombre:'Ana Torres',    factura:'CESF-3098', tipo:'Autohemoterapia Menor x5',   sesion:2, total:5,  metodo:'Autohemoterapia menor',  ampollas:[],                                                   estado:'activo',     categoria:'ozono', fechaInicio:'2026-03-15' },
-  { cc:'64521098', nombre:'Luis Mora',     factura:'CESF-2987', tipo:'Suero HEEL x4',              sesion:4, total:4,  metodo:'Venoclisis estándar',    ampollas:['Thalamus','Thyreoidea','Hypothalamus','Engystol'],   estado:'completado', categoria:'suero', fechaInicio:'2026-03-01' },
-  { cc:'71823456', nombre:'Clara Muñoz',   factura:'CESF-3115', tipo:'Sol. Salina Ozonizada x5',   sesion:1, total:5,  metodo:'SSO 200ml',              ampollas:[],                                                   estado:'activo',     categoria:'ozono', fechaInicio:'2026-04-20' },
-];
+// Helper: determinar tipo correcto de un producto según clasificación definitiva Centro EOS
+// medicamento: ampollas HEEL, Vit C IV, Azul de Metileno, solución salina, A-LipoR IV, BLUESSENS viales
+// suplemento: Nutrabiotics orales, Solaris, Biorthmol, Progurt
+// dispositivo: catéter, macrogotero, Tecnomedica, Vidox
+// gas: oxígeno medicinal (Bioxigen)
+function getTipoProducto(codigo, proveedor) {
+  // 1. Buscar en STOCK_FALLBACK (tiene el tipo ya asignado correctamente)
+  const fb = getFallback(codigo);
+  if (fb?.tipo) return fb.tipo;
+  // 2. Si está en CATALOGO_MUESTRA con linea HEEL → ampolla → medicamento
+  const enCatalogo = typeof CATALOGO_MUESTRA !== 'undefined' && CATALOGO_MUESTRA.find(p => p.codigo === codigo);
+  if (enCatalogo?.linea === 'HEEL') return 'medicamento';
+  // 3. Por proveedor
+  if (proveedor === 'Bioxigen') return 'gas';
+  if (proveedor === 'Tecnomedica') return 'dispositivo';
+  if (proveedor === 'Vidox / Bidox') return 'dispositivo';
+  if (proveedor === 'Farmacia Alfa') return 'medicamento';
+  if (['Nutrabiotics','Solaris','Biorthmol','Progurt'].includes(proveedor)) return 'suplemento';
+  return 'medicamento'; // default seguro
+}
+
+// SESIONES_DATA — única fuente de verdad: Sheets (pestaña Sesiones)
+// No hay datos hardcodeados — todo viene de Sheets
+let SESIONES_DATA = [];
 
 const CATALOGO_MUESTRA = [
   // ── AMPOLLAS HEEL (66) — Farmacia Alfa ──
@@ -3620,6 +3714,13 @@ function setupUser() {
   document.getElementById('sidebar-avatar').style.background = u.color;
   document.getElementById('welcome-msg').textContent = `Bienvenida, ${u.nombre.split(' ')[0]}`;
   document.getElementById('welcome-sub').textContent = `${u.rol} — ${new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}`;
+
+  // Mostrar botón Nuevo paquete para recep y enf
+  const btnNuevoPaquete = document.getElementById('btn-nuevo-paquete');
+  if (btnNuevoPaquete) {
+    const puedeCrearPaquete = ['enf1','enf2','recep1','recep2','admin','gerencia'].includes(u.id);
+    btnNuevoPaquete.style.display = puedeCrearPaquete ? '' : 'none';
+  }
 
   buildNav();
   buildStats();
@@ -4356,28 +4457,9 @@ function usarProducto(idx) {
 // ══════════════════════════════════════════════
 
 // Log central de auditoría — en producción se guarda en Google Sheets
-const AUDIT_LOG = [
-  // Sesiones aplicadas
-  { fecha:'2026-04-25', hora:'08:50', usuario:'Enf. 2', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 64521098 · CESF-2987 · Insuflación Rectal · Sesión 1/10', estado:'ok' },
-  { fecha:'2026-04-18', hora:'10:30', usuario:'Enf. 2', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 43203672 · CESF-3084 · Suero HEEL x4 · Sesión 2/4 · Traumeel S, Ubichinon, Engystol', estado:'ok' },
-  { fecha:'2026-04-25', hora:'09:15', usuario:'Enf. 1', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 43203672 · CESF-3084 · Suero HEEL x4 · Sesión 3/4 · Traumeel, Coenzyme, Ubichinon, Engystol', estado:'ok' },
-  { fecha:'2026-04-25', hora:'09:42', usuario:'Recep. 1', rol:'Recepcionista', accion:'Venta suplemento', detalle:'CC 52341987 · CESF-3165 · Myoessens x1 · $79.000', estado:'ok' },
-  { fecha:'2026-04-25', hora:'10:12', usuario:'Enf. 1', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 71456823 · CESF-3103 · Vitamina C Uno · Sesión 1/1', estado:'ok' },
-  { fecha:'2026-04-25', hora:'10:45', usuario:'Enf. 2', rol:'Enfermera', accion:'Baja por novedad', detalle:'Traumeel S · Lote ABC123 · Caída accidental · -1 unidad · Stock: 15→14', estado:'novedad' },
-  { fecha:'2026-04-25', hora:'11:20', usuario:'Enf. 1', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 52341987 · CESF-3091 · Suero HEEL x4 · Sesión 4/4 · Thalamus, Thyreoidea, Hypothalamus, Engystol', estado:'ok' },
-  { fecha:'2026-04-25', hora:'11:55', usuario:'Recep. 2', rol:'Recepcionista', accion:'Venta suplemento', detalle:'CC 71823456 · CESF-3170 · Enteroplex x1 · $185.000', estado:'ok' },
-  { fecha:'2026-04-25', hora:'12:30', usuario:'Admin', rol:'Administradora', accion:'Entrada mercancía', detalle:'Farmacia Alfa · FA-2026-0892 · Traumeel S x50 · Lote XYZ789 · Vence 2027-06', estado:'ok' },
-  { fecha:'2026-04-25', hora:'13:10', usuario:'Enf. 2', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 71823456 · CESF-3115 · Sol. Salina Ozonizada x5 · Sesión 2/5', estado:'ok' },
-  { fecha:'2026-04-25', hora:'14:20', usuario:'Enf. 1', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 43203672 · CESF-3110 · Insuflación Rectal x10 · Sesión 4/10', estado:'ok' },
-  { fecha:'2026-04-25', hora:'15:05', usuario:'Enf. 2', rol:'Enfermera', accion:'Baja por novedad', detalle:'Catéter N°24 · Sin lote · Defecto de fábrica · -2 unidades · Stock: 28→26', estado:'novedad' },
-  { fecha:'2026-04-25', hora:'15:40', usuario:'Recep. 1', rol:'Recepcionista', accion:'Venta suplemento', detalle:'CC 43203672 · CESF-3175 · Curcetin x1 · $154.000', estado:'ok' },
-  { fecha:'2026-04-25', hora:'16:15', usuario:'Enf. 1', rol:'Enfermera', accion:'Paciente registrado', detalle:'CC 98765432 · Juan Pérez Gómez · Primera vez · Factura CESF-3201', estado:'ok' },
-  { fecha:'2026-04-24', hora:'09:00', usuario:'Enf. 1', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 52341987 · CESF-3098 · Autohemoterapia Menor x5 · Sesión 2/5', estado:'ok' },
-  { fecha:'2026-04-24', hora:'10:30', usuario:'Enf. 2', rol:'Enfermera', accion:'Baja por novedad', detalle:'Coenzyme Compositum · Lote DEF456 · Rotura manipulación · -1 unidad · Stock: 4→3', estado:'alerta' },
-  { fecha:'2026-04-24', hora:'11:00', usuario:'Enf. 2', rol:'Enfermera', accion:'Baja por novedad', detalle:'Ubichinon Compositum · Lote GHI789 · Caída accidental · -1 unidad · Stock: 9→8', estado:'alerta' },
-  { fecha:'2026-04-24', hora:'14:00', usuario:'Admin', rol:'Administradora', accion:'Entrada mercancía', detalle:'Nutrabiotics · NB-2026-0445 · Myoessens x20 · Lote NB456 · Vence 2027-01', estado:'ok' },
-  { fecha:'2026-04-23', hora:'17:45', usuario:'Enf. 2', rol:'Enfermera', accion:'Sesión aplicada', detalle:'CC 39187654 · CESF-2991 · Suero HEEL x4 · Sesión 1/4', estado:'alerta', alerta:'Fuera de horario habitual' },
-];
+// AUDIT_LOG — única fuente de verdad: Sheets (pestaña Auditoria)
+// No hay datos hardcodeados — todo viene de Sheets
+let AUDIT_LOG = [];
 
 const AUDIT_DISCREPANCIAS = [
   { producto:'Coenzyme Compositum', codigo:'COEC', sesiones_registradas:12, consumo_esperado:12, consumo_real:14, diferencia:-2, estado:'critico', nota:'2 unidades sin justificación — revisar novedades' },
@@ -5272,7 +5354,7 @@ function renderPedidosPendientes() {
         <div style="background:white;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div>
             <div style="font-size:13px;font-weight:600">${ped.proveedor}</div>
-            <div style="font-size:11px;color:var(--gris)">${ped.fecha} · ${ped.items.length} productos · ${ped.creadoPor}</div>
+            <div style="font-size:11px;color:var(--gris)">${new Date(ped.fecha).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'})} · ${ped.items.length} productos · ${ped.creadoPor}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
@@ -5467,9 +5549,17 @@ function rowsToPedidos(rows) {
   PEDIDOS_ENVIADOS.length = 0;
   data.forEach(r => {
     if (!r[0]) return;
+    // Normalizar fecha — Sheets puede devolver ISO con zona horaria
+    let fechaNorm = String(r[2] || '');
+    try {
+      if (fechaNorm.includes('T') || fechaNorm.length > 10) {
+        const d = new Date(fechaNorm);
+        if (!isNaN(d)) fechaNorm = d.toISOString().slice(0, 10);
+      }
+    } catch(e) {}
     PEDIDOS_ENVIADOS.push({
       id: String(r[0]), proveedor: String(r[1]),
-      fecha: String(r[2]), hora: String(r[3]),
+      fecha: fechaNorm, hora: String(r[3]),
       estado: String(r[4]), creadoPor: String(r[5]),
       items: JSON.parse(r[6] || '[]')
     });
@@ -5506,17 +5596,19 @@ async function cargarDesdeSheets() {
   console.log('Cargando datos desde Google Sheets...');
   mostrarToast('☁️ Cargando datos...', 'Conectando con Google Sheets', 'azul');
 
-  const [stockRows, auditRows, pedidosRows] = await Promise.all([
+  const [stockRows, auditRows, pedidosRows, sesionesRows] = await Promise.all([
     gasRead('Stock'),
     gasRead('Auditoria'),
     gasRead('Pedidos'),
+    gasRead('Sesiones'),
   ]);
 
   // REGLA: Sheets es la única fuente de verdad para stock.
   // rowsToStock() solo reemplaza STOCK_DATA si Sheets trae filas válidas.
-  if (stockRows)   rowsToStock(stockRows);
-  if (auditRows)   rowsToAudit(auditRows);
-  if (pedidosRows) rowsToPedidos(pedidosRows);
+  if (stockRows)    rowsToStock(stockRows);
+  if (auditRows)    rowsToAudit(auditRows);
+  if (pedidosRows)  rowsToPedidos(pedidosRows);
+  if (sesionesRows) rowsToSesiones(sesionesRows);
   console.log('AUDIT_LOG tras cargar Sheets:', AUDIT_LOG.length, 'entradas');
   console.log('Sesiones CESF-3084:', AUDIT_LOG.filter(e => e.detalle && e.detalle.includes('CESF-3084')).map(e => e.fecha + ' ' + e.accion));
 
@@ -5562,6 +5654,124 @@ async function guardarAuditoriaEnSheets() {
 async function guardarPedidosEnSheets() {
   if (!gasConectado) return;
   await gasWrite('Pedidos', pedidosToRows());
+}
+
+// ── Serialización de SESIONES_DATA ──
+function sessionesToRows() {
+  const header = ['cc','nombre','factura','codigoHimed','tipo','sesion','total','medico','fechaInicio','estado','metodo','categoria','ampollas'];
+  return [header, ...SESIONES_DATA.map(s => [
+    s.cc, s.nombre, s.factura, s.codigoHimed || '',
+    s.tipo, s.sesion, s.total, s.medico || '',
+    s.fechaInicio, s.estado, s.metodo || '', s.categoria || '',
+    JSON.stringify(s.ampollas || [])
+  ])];
+}
+
+function rowsToSesiones(rows) {
+  if (!rows || rows.length < 2) {
+    console.warn('Sheets Sesiones vacío — SESIONES_DATA conservado sin cambios');
+    return;
+  }
+  const [, ...data] = rows;
+  const filasValidas = data.filter(r => r[0] && String(r[0]).trim() !== '');
+  if (filasValidas.length === 0) return;
+
+  SESIONES_DATA.length = 0;
+  filasValidas.forEach(r => {
+    let ampollas = [];
+    try { ampollas = JSON.parse(r[12] || '[]'); } catch(e) {}
+    SESIONES_DATA.push({
+      cc:          String(r[0]),
+      nombre:      String(r[1]),
+      factura:     String(r[2]),
+      codigoHimed: String(r[3] || ''),
+      tipo:        String(r[4]),
+      sesion:      parseInt(r[5]) || 0,
+      total:       parseInt(r[6]) || 1,
+      medico:      String(r[7] || ''),
+      fechaInicio: String(r[8] || ''),
+      estado:      String(r[9] || 'activo'),
+      metodo:      String(r[10] || ''),
+      categoria:   String(r[11] || ''),
+      ampollas,
+    });
+  });
+  console.log(`✅ SESIONES_DATA cargado desde Sheets: ${SESIONES_DATA.length} paquetes`);
+}
+
+async function guardarSesionesEnSheets() {
+  if (!gasConectado) return;
+  await gasWrite('Sesiones', sessionesToRows());
+}
+
+// ── Parsear código HIMED para extraer sesiones y médico ──
+function parsearCodigoHimed(codigo) {
+  // Formato: XXXXXNNNMM — ej. SUHEE04M1, OZAMB05T0, OZIRE10T0
+  if (!codigo) return { total: 1, medico: '' };
+  const match = codigo.match(/(\d{2})([MT]\d+)$/);
+  if (match) {
+    return {
+      total:  parseInt(match[1]) || 1,
+      medico: match[2] || ''
+    };
+  }
+  return { total: 1, medico: '' };
+}
+
+// ── Descripción legible desde código HIMED ──
+function descripcionDesdeCodigoHimed(codigo) {
+  if (!codigo) return codigo;
+  // Buscar en CATALOGO_MUESTRA primero (no aplica — es para sesiones)
+  // Usar el Master de códigos simplificado
+  const prefijos = {
+    'SUHEE': 'Suero HEEL',
+    'SUVIC': 'Vitamina C IV',
+    'SUAZM': 'Azul de Metileno IV',
+    'SUALR': 'A-LipoR IV',
+    'SUBLU': 'BLUESSENS IV',
+    'SUETV': 'ETNV',
+    'OZAMB': 'Autohemoterapia Menor',
+    'OZAMA': 'Autohemoterapia Mayor',
+    'OZIRE': 'Insuflación Rectal',
+    'OZIVA': 'Insuflación Vaginal',
+    'OZINF': 'Infiltración Ozono',
+    'OZSSO': 'Sol. Salina Ozonizada',
+    'OZSAU': 'Sauna Ozonizada',
+  };
+  for (const [pref, desc] of Object.entries(prefijos)) {
+    if (codigo.startsWith(pref)) {
+      const match = codigo.match(/(\d{2})[MT]/);
+      const n = match ? parseInt(match[1]) : 1;
+      return n === 1 ? `${desc}` : `${desc} x${n}`;
+    }
+  }
+  return codigo; // devolver el código si no se reconoce
+}
+
+// ── Categoría desde código HIMED ──
+function categoriaDesdeCodigoHimed(codigo) {
+  if (!codigo) return 'suero';
+  if (codigo.startsWith('SU')) return 'suero';
+  if (codigo.startsWith('OZ')) return 'ozono';
+  return 'suero';
+}
+
+// ── Método desde código HIMED ──
+function metodoDesdeCodigo(codigo) {
+  if (!codigo) return '';
+  if (codigo.startsWith('SUHEE')) return 'Venoclisis estándar';
+  if (codigo.startsWith('SUVIC')) return 'Venoclisis 500ml';
+  if (codigo.startsWith('SUAZM')) return 'Venoclisis 250ml';
+  if (codigo.startsWith('SUALR')) return 'Venoclisis estándar';
+  if (codigo.startsWith('SUBLU')) return 'Venoclisis estándar';
+  if (codigo.startsWith('SUETV')) return 'ETNV';
+  if (codigo.startsWith('OZAMB')) return 'Autohemoterapia menor';
+  if (codigo.startsWith('OZAMA')) return 'Autohemoterapia mayor';
+  if (codigo.startsWith('OZIRE')) return 'Insuflación rectal';
+  if (codigo.startsWith('OZIVA')) return 'Insuflación vaginal';
+  if (codigo.startsWith('OZINF')) return 'Infiltración';
+  if (codigo.startsWith('OZSSO')) return 'SSO 200ml';
+  return '';
 }
 // ══════════════════════════════════════════════
 // { id, fecha, hora, tipo:'suplemento'|'ampolla', codigo, nombre, cantidadSolicitada,
@@ -10666,6 +10876,15 @@ function buildStock(filtroActivo) {
   else if (f === 'vidox')        datos = datos.filter(p => p.proveedor === 'Vidox');
   else if (f === 'bioxigen')     datos = datos.filter(p => p.tipo === 'gases');
 
+  // Búsqueda rápida por nombre o código
+  const busqueda = (document.getElementById('stock-busqueda')?.value || '').toLowerCase().trim();
+  if (busqueda) {
+    datos = datos.filter(p =>
+      p.nombre?.toLowerCase().includes(busqueda) ||
+      p.codigo?.toLowerCase().includes(busqueda)
+    );
+  }
+
   // Ordenar por nombre y luego por lote para agrupar visualmente lotes del mismo producto
   datos = datos.slice().sort((a, b) => {
     const nombreCmp = (a.nombre || '').localeCompare(b.nombre || '', 'es');
@@ -11291,6 +11510,7 @@ function completarRegistroSesion() {
 
   guardarStockEnSheets();
   guardarAuditoriaEnSheets();
+  guardarSesionesEnSheets();
   closeModal('modal-nueva-sesion');
   resetAdicionales();
   const toastMsg = todasAmpollas.length > 0
@@ -11590,13 +11810,13 @@ function confirmarRecepcionAdmin() {
         if (vence) prod.vence = vence;
         console.log('Stock actualizado (lote existente):', item.codigo, lote, '→', prod.stock);
       } else {
+        const tipoRef = getTipoProducto(item.codigo, pedidoRecepcionActivo?.proveedor);
         const fb = getFallback(item.codigo);
-        const tipoRef = fb?.tipo || (item.categoria === 'enfermeria' ? 'medicamento' : 'suplemento');
         STOCK_DATA.push({
           codigo: item.codigo, nombre: item.nombre, lote, vence: vence || '',
           stock: cant, min: fb?.min || item.min || 3, tipo: tipoRef, categoria: 'recepcion'
         });
-        console.log('Fila nueva creada en STOCK_DATA (Sheets la recibirá al guardar):', item.codigo, lote, cant, 'uds');
+        console.log('Fila nueva en STOCK_DATA:', item.codigo, lote, cant, 'uds, tipo:', tipoRef);
       }
       recibidos++;
       AUDIT_LOG.unshift({
@@ -11968,9 +12188,7 @@ function registrarEntrada() {
         vence:     item.vencimiento || '',
         stock:     0,
         min:       minRef,
-        tipo:      item.categoria === 'dispositivo' ? 'dispositivos' :
-                   item.categoria === 'suplemento'  ? 'suplemento'  :
-                   item.categoria === 'oxigeno'     ? 'gases'        : 'heel',
+        tipo:      getTipoProducto(item.codigo, proveedor),
         categoria: item.categoria === 'suplemento' ? 'recepcion' : 'enfermeria',
         iva:       item.tieneIVA ? 19 : 0,
       };
@@ -12531,6 +12749,220 @@ async function limpiarAgotados() {
 
   buildStock();
   mostrarToast('✅ Limpieza completada', `${antes - STOCK_DATA.length} fila(s) agotadas eliminadas`, 'verde');
+}
+
+// ══════════════════════════════════════════════
+// NUEVO PAQUETE DE SESIONES
+// ══════════════════════════════════════════════
+let npLineas = []; // líneas de procedimiento del nuevo paquete
+
+function abrirNuevoPaquete() {
+  npLineas = [];
+  document.getElementById('np-factura').value = '';
+  document.getElementById('np-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('np-nombre').value = '';
+  document.getElementById('np-cc').value = '';
+  renderLineasNuevoPaquete();
+  agregarLineaNuevoPaquete();
+  openModal('modal-nuevo-paquete');
+}
+
+function renderLineasNuevoPaquete() {
+  const cont = document.getElementById('np-lineas-container');
+  if (!cont) return;
+  cont.innerHTML = npLineas.map((l, i) => `
+    <div style="background:var(--gris-xl,#f7f8fa);border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;color:var(--negro)">Línea ${i+1}</div>
+        ${npLineas.length > 1 ? `<button onclick="eliminarLineaNuevoPaquete(${i})" style="background:none;border:none;color:var(--rojo);cursor:pointer;font-size:18px">×</button>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Código HIMED *</label>
+          <input type="text" value="${l.codigo||''}" placeholder="SUHEE04M1"
+            oninput="actualizarLineaNuevoPaquete(${i},'codigo',this.value)"
+            onblur="autocompletarLineaNuevoPaquete(${i})"
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Descripción</label>
+          <input type="text" value="${l.tipo||''}" placeholder="Se llena automático"
+            oninput="actualizarLineaNuevoPaquete(${i},'tipo',this.value)"
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Total sesiones</label>
+          <input type="number" value="${l.total||1}" min="1" max="20"
+            oninput="actualizarLineaNuevoPaquete(${i},'total',parseInt(this.value)||1)"
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Médico</label>
+          <input type="text" value="${l.medico||''}" placeholder="M1"
+            oninput="actualizarLineaNuevoPaquete(${i},'medico',this.value)"
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function agregarLineaNuevoPaquete() {
+  npLineas.push({ codigo:'', tipo:'', total:1, medico:'' });
+  renderLineasNuevoPaquete();
+}
+
+function eliminarLineaNuevoPaquete(i) {
+  npLineas.splice(i, 1);
+  renderLineasNuevoPaquete();
+}
+
+function actualizarLineaNuevoPaquete(i, campo, valor) {
+  npLineas[i][campo] = valor;
+}
+
+function autocompletarLineaNuevoPaquete(i) {
+  const codigo = (npLineas[i].codigo || '').trim().toUpperCase();
+  if (!codigo) return;
+  const parsed = parsearCodigoHimed(codigo);
+  if (!npLineas[i].tipo) npLineas[i].tipo = descripcionDesdeCodigoHimed(codigo);
+  if (!npLineas[i].medico) npLineas[i].medico = parsed.medico;
+  if (npLineas[i].total === 1) npLineas[i].total = parsed.total;
+  renderLineasNuevoPaquete();
+}
+
+async function importarFacturaNuevoPaquete(input, tipo) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const loading = document.getElementById('nuevo-paquete-loading');
+  if (loading) loading.style.display = 'block';
+
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Error leyendo archivo'));
+      r.readAsDataURL(file);
+    });
+
+    const mediaType = tipo === 'pdf' ? 'application/pdf' : file.type;
+    const contentType = tipo === 'pdf' ? 'document' : 'image';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: contentType,
+              source: { type: 'base64', media_type: mediaType, data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Extrae los datos de esta factura de Centro EOS Medicina Funcional y responde SOLO con JSON válido, sin explicaciones ni markdown:
+{
+  "factura": "número de factura (ej: CESF3522)",
+  "fecha": "fecha en formato YYYY-MM-DD",
+  "nombre": "nombre completo del paciente",
+  "cc": "número de cédula sin puntos ni guiones",
+  "lineas": [
+    {
+      "codigo": "código HIMED (ej: SUHEE04M1)",
+      "tipo": "descripción del servicio",
+      "total": número de sesiones (el número en el código),
+      "medico": "código del médico (ej: M1, M2, T0)"
+    }
+  ]
+}`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const texto = data.content?.map(c => c.text || '').join('') || '';
+    const jsonStr = texto.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(jsonStr);
+
+    // Llenar formulario
+    if (parsed.factura) document.getElementById('np-factura').value = parsed.factura;
+    if (parsed.fecha)   document.getElementById('np-fecha').value = parsed.fecha;
+    if (parsed.nombre)  document.getElementById('np-nombre').value = parsed.nombre;
+    if (parsed.cc)      document.getElementById('np-cc').value = parsed.cc;
+    if (parsed.lineas?.length) {
+      npLineas = parsed.lineas.map(l => ({
+        codigo: l.codigo || '',
+        tipo:   l.tipo || descripcionDesdeCodigoHimed(l.codigo),
+        total:  parseInt(l.total) || 1,
+        medico: l.medico || ''
+      }));
+      renderLineasNuevoPaquete();
+    }
+    mostrarToast('✅ Factura leída', `${parsed.lineas?.length || 0} línea(s) detectada(s)`, 'verde');
+  } catch(e) {
+    console.error('Error importando factura:', e);
+    mostrarToast('❌ Error', 'No se pudo leer la factura — ingresa los datos manualmente', 'rojo');
+  } finally {
+    if (loading) loading.style.display = 'none';
+  }
+}
+
+async function confirmarNuevoPaquete() {
+  const factura = document.getElementById('np-factura')?.value?.trim();
+  const fecha   = document.getElementById('np-fecha')?.value;
+  const nombre  = document.getElementById('np-nombre')?.value?.trim();
+  const cc      = document.getElementById('np-cc')?.value?.trim();
+
+  if (!factura) { alert('Ingresa el número de factura'); return; }
+  if (!nombre)  { alert('Ingresa el nombre del paciente'); return; }
+  if (!cc)      { alert('Ingresa la cédula del paciente'); return; }
+  if (npLineas.length === 0 || !npLineas[0].codigo) { alert('Agrega al menos una línea de procedimiento'); return; }
+
+  let creados = 0;
+  npLineas.forEach(l => {
+    if (!l.codigo) return;
+    const codigo = l.codigo.trim().toUpperCase();
+    const parsed = parsearCodigoHimed(codigo);
+    const paquete = {
+      cc,
+      nombre,
+      factura,
+      codigoHimed: codigo,
+      tipo:        l.tipo || descripcionDesdeCodigoHimed(codigo),
+      sesion:      0,
+      total:       l.total || parsed.total || 1,
+      medico:      l.medico || parsed.medico || '',
+      fechaInicio: fecha || new Date().toISOString().slice(0,10),
+      estado:      'activo',
+      metodo:      metodoDesdeCodigo(codigo),
+      categoria:   categoriaDesdeCodigoHimed(codigo),
+      ampollas:    [],
+    };
+    SESIONES_DATA.push(paquete);
+    creados++;
+
+    AUDIT_LOG.unshift({
+      fecha:   new Date().toISOString().slice(0,10),
+      hora:    new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      usuario: currentUser?.nombre, rol: currentUser?.rol,
+      accion:  'Paquete creado',
+      detalle: `CC ${cc} · ${nombre} · ${factura} · ${paquete.tipo} · ${paquete.total} sesiones`,
+      estado:  'ok'
+    });
+  });
+
+  await guardarSesionesEnSheets();
+  await guardarAuditoriaEnSheets();
+
+  closeModal('modal-nuevo-paquete');
+  buildStats();
+  mostrarToast('✅ Paquete creado', `${creados} paquete(s) para ${nombre}`, 'verde');
 }
 
 function updateDate() {
