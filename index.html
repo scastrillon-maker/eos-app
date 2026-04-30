@@ -11352,6 +11352,7 @@ function abrirEntradaMercancia() {
 
   // Enfermeras → flujo basado en pedidos pendientes de Farmacia Alfa, Tecnomedica, Vidox, Bioxigen
   const proveedoresEnf = ['Farmacia Alfa', 'Tecnomedica', 'Vidox / Bidox', 'Bioxigen'];
+  console.log('PEDIDOS_ENVIADOS total:', PEDIDOS_ENVIADOS.length, PEDIDOS_ENVIADOS.map(p => p.proveedor + '/' + p.estado));
   const pedidosPend = PEDIDOS_ENVIADOS.filter(p =>
     (p.estado === 'pendiente' || p.estado === 'recibido_parcial') &&
     proveedoresEnf.includes(p.proveedor)
