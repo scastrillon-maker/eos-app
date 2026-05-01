@@ -6503,7 +6503,6 @@ function renderPedidoOtros() {
         </div>
       </div>`;
   }).join('');
-  }).join('');
 
   // Calcular totales iniciales
   Object.keys(porProveedor).forEach(prov => actualizarTotalProveedor(prov));
@@ -12514,9 +12513,7 @@ function agregarItemEntrada() {
   renderEntradaItems();
 }
 
-function registrarEntrada() {
-  const factura      = document.getElementById('ent-factura').value.trim();
-  const proveedor    = document.getElementById('ent-proveedor').value;
+async function registrarEntrada() {
   const fechaEntrega = new Date().toISOString().slice(0,10);
   const fechaPedido  = document.getElementById('ent-fecha-pedido')?.value || fechaEntrega;
   const responsable  = currentUser?.nombre || 'Admin';
