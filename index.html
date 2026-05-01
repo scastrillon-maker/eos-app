@@ -11138,18 +11138,23 @@ function filtrarCatalogo(filtro, btn) {
 // CARGA INICIAL DE STOCK — solo admin, solo una vez
 // ══════════════════════════════════════════════
 async function cargarStockInicial() {
-  if (!confirm('¿Cargar los 27 productos de Tecnomedica en el Stock? Esta acción solo debe hacerse una vez.')) return;
+  if (!confirm('¿Cargar el stock completo (HEEL + Farmacia Alfa + Nutrabiotics + Tecnomedica) en Sheets? Esta acción reemplaza el stock actual.')) return;
 
   const btn = document.getElementById('btn-carga-inicial');
   if (btn) { btn.disabled = true; btn.textContent = 'Cargando...'; }
 
-  const rows = [
-    ['codigo','nombre','lote','vence','stock','min','tipo','categoria'],
+  // Tomar todos los productos del STOCK_FALLBACK (HEEL, Alfa, Nutrabiotics, salinas)
+  const header = ['codigo','nombre','lote','vence','stock','min','tipo','categoria'];
+  const desdeFallback = STOCK_FALLBACK.map(p => [
+    p.codigo, p.nombre, p.lote||'', p.vence||'',
+    p.stock||0, p.min||0, p.tipo||'medicamento', p.categoria||'enfermeria'
+  ]);
+
+  // Agregar los dispositivos de Tecnomedica que NO están en STOCK_FALLBACK
+  const codigosFallback = new Set(STOCK_FALLBACK.map(p => p.codigo));
+  const tecnomedica = [
     ['CIVC01','Catéter CERTO Introcan 24Gx0.7','','',0,100,'dispositivo','enfermeria'],
     ['2362','Macrogotero 10G','','',0,100,'dispositivo','enfermeria'],
-    ['10102136','Solución Salina 0.9% 500ml Baxter','','',0,40,'medicamento','enfermeria'],
-    ['TECS-SS250','Solución Salina 0.9% 250ml','','',0,40,'medicamento','enfermeria'],
-    ['TECS-SS100','Solución Salina 0.9% 100ml','','',0,20,'medicamento','enfermeria'],
     ['3624','Jeringa 20ml 21x1.5 Precision 3P CR','','',0,50,'dispositivo','enfermeria'],
     ['5441','Jeringa 5ml 21x1.5 Life Care 3P CR','','',0,50,'dispositivo','enfermeria'],
     ['2965','Gasa no tejida estéril 10x10x2un','','',0,50,'dispositivo','enfermeria'],
@@ -11172,11 +11177,13 @@ async function cargarStockInicial() {
     ['10104133','Bolsa plástica grande','','',0,5,'dispositivo','enfermeria'],
     ['10104139','Tapaboca azul desechable CJx50','','',0,3,'dispositivo','enfermeria'],
     ['BIOXIGEN','Oxígeno medicinal (Bioxigen)','','',0,1,'gas','enfermeria'],
-  ];
+  ].filter(r => !codigosFallback.has(r[0]));
+
+  const rows = [header, ...desdeFallback, ...tecnomedica];
 
   const ok = await gasWrite('Stock', rows);
   if (ok) {
-    mostrarToast('✅ Stock cargado', '27 productos de Tecnomedica en Sheets', 'verde');
+    mostrarToast('✅ Stock completo cargado', `${rows.length - 1} productos en Sheets`, 'verde');
     if (btn) btn.style.display = 'none';
     await sincronizarSheets();
     buildCatalogo();
@@ -11191,11 +11198,10 @@ function buildCatalogo() {
   const tbody = document.getElementById('catalogo-tbody');
   if (!tbody) return;
 
-  // Mostrar botón carga inicial solo para admin cuando Stock está vacío
+  // Mostrar botón carga inicial solo para admin
   const btnCarga = document.getElementById('btn-carga-inicial');
   if (btnCarga) {
-    const stockVacio = STOCK_DATA.filter(p => p.tipo === 'dispositivo' || p.tipo === 'gas').length === 0;
-    btnCarga.style.display = (currentUser?.id === 'admin' && stockVacio) ? '' : 'none';
+    btnCarga.style.display = currentUser?.id === 'admin' ? '' : 'none';
   }
 
   if (typeof catalogoFiltro === 'undefined') window.catalogoFiltro = 'todos';
