@@ -1119,8 +1119,8 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
         <!-- Buscador por cédula -->
         <div class="search-bar">
           <div class="search-field" style="flex:1">
-            <label>Buscar paciente por cédula</label>
-            <input type="text" placeholder="Ingrese CC para ver paquetes activos..."
+            <label>Buscar paciente por cédula o nombre</label>
+            <input type="text" placeholder="Cédula o nombre del paciente..."
               id="search-cc" oninput="buscarEnSesiones(this.value)"/>
           </div>
           <button class="btn-secondary" onclick="buscarEnSesiones(document.getElementById('search-cc').value)">
@@ -2133,9 +2133,9 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
         </div>
 
         <div class="form-field" style="margin-bottom:16px">
-          <label>Cédula del paciente (CC Titular o Beneficiario)</label>
+          <label>Buscar paciente por cédula o nombre</label>
           <div style="display:flex;gap:10px">
-            <input type="text" id="ses-cc-buscar" placeholder="Ingrese número de cédula..."
+            <input type="text" id="ses-cc-buscar" placeholder="Cédula o nombre del paciente..."
               style="flex:1;padding:13px 16px;border:1.5px solid var(--gris-m);border-radius:var(--radio);font-family:var(--font-body);font-size:15px"
               oninput="buscarPaciente(this.value)"/>
             <button class="btn-primary" onclick="buscarPaciente(document.getElementById('ses-cc-buscar').value)">
@@ -3259,19 +3259,19 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">N° Factura HIMED *</label>
-          <input id="np-factura" type="text" placeholder="CESF3522" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+          <input id="np-factura" type="text" placeholder="CESF3522" oninput="npDatos.factura=this.value" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">Fecha factura *</label>
-          <input id="np-fecha" type="date" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+          <input id="np-fecha" type="date" oninput="npDatos.fecha=this.value" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">Nombre paciente *</label>
-          <input id="np-nombre" type="text" placeholder="Nombre completo" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+          <input id="np-nombre" type="text" placeholder="Nombre completo" oninput="npDatos.nombre=this.value" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris);letter-spacing:0.05em">Cédula *</label>
-          <input id="np-cc" type="text" placeholder="71774114" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
+          <input id="np-cc" type="text" placeholder="71774114" oninput="npDatos.cc=this.value" style="width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:14px;box-sizing:border-box">
         </div>
       </div>
 
@@ -3281,6 +3281,13 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
       <button onclick="agregarLineaNuevoPaquete()" style="width:100%;padding:10px;border:1.5px dashed var(--gris-m);border-radius:8px;background:transparent;color:var(--gris);font-size:13px;cursor:pointer;margin-bottom:16px">
         + Agregar línea
       </button>
+
+      <div style="background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:18px">⚠️</span>
+        <div style="font-size:13px;color:#92400E;line-height:1.5">
+          <strong>Verifique antes de guardar:</strong> confirme que el código HIMED ingresado coincide exactamente con el que aparece en la factura física.
+        </div>
+      </div>
 
       <button onclick="confirmarNuevoPaquete()" class="btn-primary" style="width:100%">
         ✅ Crear paquete(s) y guardar
@@ -4168,13 +4175,15 @@ async function confirmarDatosFactura() {
 // Estado del paquete seleccionado
 let paqueteActivo = null;
 
-function buscarPaciente(cc) {
-  cc = cc.trim();
-  if (cc.length < 4) return;
+function buscarPaciente(query) {
+  query = query.trim().toLowerCase();
+  if (query.length < 3) return;
 
-  const resultados = SESIONES_DATA.filter(s =>
-    (s.cc === cc || s.ccTitular === cc) && s.estado === 'activo'
-  );
+  const resultados = SESIONES_DATA.filter(s => {
+    const coincideCC     = s.cc === query || s.ccTitular === query || s.cc?.includes(query);
+    const coincideNombre = s.nombre?.toLowerCase().includes(query);
+    return (coincideCC || coincideNombre) && s.estado === 'activo';
+  });
 
   const resBusq  = document.getElementById('resultado-busqueda');
   const sinRes   = document.getElementById('sin-resultados');
@@ -4183,6 +4192,9 @@ function buscarPaciente(cc) {
   if (resultados.length === 0) {
     resBusq.style.display = 'none';
     sinRes.style.display  = 'block';
+    sinRes.innerHTML = SESIONES_DATA.length === 0
+      ? '<p style="color:var(--gris);text-align:center">⏳ Cargando datos desde Sheets... espera un momento y busca de nuevo</p>'
+      : '<p style="color:var(--gris);text-align:center">No se encontraron paquetes activos para este paciente</p>';
     return;
   }
 
@@ -4212,6 +4224,9 @@ function buscarPaciente(cc) {
         transition: all 0.15s;
       " onmouseover="this.style.background='${colorBg}'" onmouseout="this.style.background='white'">
         <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--verde);margin-bottom:2px">
+            ${s.nombre ? s.nombre + ' · CC ' + s.cc : 'CC ' + s.cc}
+          </div>
           <div style="font-size:14px;font-weight:700;color:var(--negro);margin-bottom:4px">
             ${icono} ${s.tipo}
           </div>
@@ -5568,6 +5583,7 @@ function rowsToPedidos(rows) {
 
 // ── Carga inicial desde Google Sheets ──
 let gasConectado = false;
+let sheetsSaving = false; // true mientras se está guardando — evita que la sincronización auto interfiera
 
 function actualizarIndicadorSheets(conectado) {
   const dot   = document.getElementById('sheets-dot');
@@ -5593,6 +5609,7 @@ async function reconectarSheets() {
 }
 
 async function cargarDesdeSheets() {
+  if (sheetsSaving) { console.log('Skipping reload — save in progress'); return; }
   console.log('Cargando datos desde Google Sheets...');
   mostrarToast('☁️ Cargando datos...', 'Conectando con Google Sheets', 'azul');
 
@@ -5678,8 +5695,6 @@ function rowsToSesiones(rows) {
 
   SESIONES_DATA.length = 0;
   filasValidas.forEach(r => {
-    let ampollas = [];
-    try { ampollas = JSON.parse(r[12] || '[]'); } catch(e) {}
     SESIONES_DATA.push({
       cc:          String(r[0]),
       nombre:      String(r[1]),
@@ -10777,7 +10792,7 @@ function buildSesiones() {
           </div>
         </div>
         <div class="sesion-info">
-          <div class="sesion-name">CC ${s.cc} &nbsp;·&nbsp; ${s.tipo}</div>
+          <div class="sesion-name">${s.nombre ? s.nombre + ' &nbsp;·&nbsp; CC ' + s.cc : 'CC ' + s.cc} &nbsp;·&nbsp; ${s.tipo}</div>
           <div class="sesion-meta">Factura: ${s.factura} &nbsp;·&nbsp; ${s.metodo}</div>
           <div class="sesion-tags">${statusTag}${categoriaTag}${ampollasTags}</div>
         </div>
@@ -12331,22 +12346,24 @@ function mostrarToast(titulo, mensaje, tipo = 'verde') {
 // ══════════════════════════════════════════════
 // FILTROS
 // ══════════════════════════════════════════════
-function buscarEnSesiones(cc) {
-  cc = cc.trim();
+function buscarEnSesiones(query) {
+  const q = query.trim().toLowerCase();
   const placeholder = document.getElementById('sesiones-placeholder');
   const lista       = document.getElementById('sesiones-list');
   const noResult    = document.getElementById('sesiones-no-result');
 
-  if (cc.length < 3) {
+  if (q.length < 3) {
     placeholder.style.display = 'block';
     lista.style.display       = 'none';
     noResult.style.display    = 'none';
     return;
   }
 
-  const resultados = SESIONES_DATA.filter(s =>
-    s.cc.includes(cc) && (s.estado === 'activo')
-  );
+  const resultados = SESIONES_DATA.filter(s => {
+    const coincideCC     = s.cc?.toLowerCase().includes(q);
+    const coincideNombre = s.nombre?.toLowerCase().includes(q);
+    return (coincideCC || coincideNombre) && s.estado === 'activo';
+  });
 
   if (resultados.length === 0) {
     placeholder.style.display = 'none';
@@ -12756,16 +12773,66 @@ async function limpiarAgotados() {
 // ══════════════════════════════════════════════
 let npLineas = []; // líneas de procedimiento del nuevo paquete
 
+let npDatos = { factura: '', fecha: '', nombre: '', cc: '' };
+
 function abrirNuevoPaquete() {
   npLineas = [];
-  document.getElementById('np-factura').value = '';
-  document.getElementById('np-fecha').value = new Date().toISOString().slice(0,10);
-  document.getElementById('np-nombre').value = '';
-  document.getElementById('np-cc').value = '';
-  renderLineasNuevoPaquete();
+  npDatos = { factura: '', fecha: new Date().toISOString().slice(0,10), nombre: '', cc: '' };
+  renderFormNuevoPaquete();
   agregarLineaNuevoPaquete();
   openModal('modal-nuevo-paquete');
 }
+
+function renderFormNuevoPaquete() {
+  const body = document.querySelector('#modal-nuevo-paquete .modal-body');
+  if (!body) return;
+  // Solo actualizar los inputs del paciente sin tocar el contenedor de líneas
+  const fac = document.getElementById('np-factura');
+  const fec = document.getElementById('np-fecha');
+  const nom = document.getElementById('np-nombre');
+  const cc  = document.getElementById('np-cc');
+  if (fac) fac.value = npDatos.factura;
+  if (fec) fec.value = npDatos.fecha;
+  if (nom) nom.value = npDatos.nombre;
+  if (cc)  cc.value  = npDatos.cc;
+}
+
+// Catálogo de códigos HIMED conocidos para autocompletado
+const CODIGOS_HIMED = [
+  { codigo:'SUHEE01M1', desc:'Suero HEEL x1', sesiones:1 },
+  { codigo:'SUHEE01M2', desc:'Suero HEEL x1', sesiones:1 },
+  { codigo:'SUHEE04M1', desc:'Suero HEEL x4', sesiones:4 },
+  { codigo:'SUHEE04M2', desc:'Suero HEEL x4', sesiones:4 },
+  { codigo:'SUHEE04M3', desc:'Suero HEEL x4', sesiones:4 },
+  { codigo:'SUHEE04M4', desc:'Suero HEEL x4', sesiones:4 },
+  { codigo:'SUHEE04M5', desc:'Suero HEEL x4', sesiones:4 },
+  { codigo:'SUHEE10M1', desc:'Suero HEEL x10', sesiones:10 },
+  { codigo:'SUHEE10M2', desc:'Suero HEEL x10', sesiones:10 },
+  { codigo:'SUVIC01M1', desc:'Vitamina C IV x1', sesiones:1 },
+  { codigo:'SUVIC05M1', desc:'Vitamina C IV x5', sesiones:5 },
+  { codigo:'SUVIC10M1', desc:'Vitamina C IV x10', sesiones:10 },
+  { codigo:'SUAZM01M1', desc:'Azul de Metileno IV x1', sesiones:1 },
+  { codigo:'SUAZM05M1', desc:'Azul de Metileno IV x5', sesiones:5 },
+  { codigo:'SUALR01M1', desc:'A-LipoR IV x1', sesiones:1 },
+  { codigo:'SUALR05M1', desc:'A-LipoR IV x5', sesiones:5 },
+  { codigo:'SUBLU01M1', desc:'BLUESSENS IV x1', sesiones:1 },
+  { codigo:'SUBLU05M1', desc:'BLUESSENS IV x5', sesiones:5 },
+  { codigo:'SUETV01M1', desc:'ETNV x1', sesiones:1 },
+  { codigo:'OZAMB01M1', desc:'Autohemoterapia Menor x1', sesiones:1 },
+  { codigo:'OZAMB05M1', desc:'Autohemoterapia Menor x5', sesiones:5 },
+  { codigo:'OZAMB10M1', desc:'Autohemoterapia Menor x10', sesiones:10 },
+  { codigo:'OZAMA01M1', desc:'Autohemoterapia Mayor x1', sesiones:1 },
+  { codigo:'OZAMA05M1', desc:'Autohemoterapia Mayor x5', sesiones:5 },
+  { codigo:'OZIRE01M1', desc:'Insuflación Rectal x1', sesiones:1 },
+  { codigo:'OZIRE05M1', desc:'Insuflación Rectal x5', sesiones:5 },
+  { codigo:'OZIRE10M1', desc:'Insuflación Rectal x10', sesiones:10 },
+  { codigo:'OZIVA01M1', desc:'Insuflación Vaginal x1', sesiones:1 },
+  { codigo:'OZIVA05M1', desc:'Insuflación Vaginal x5', sesiones:5 },
+  { codigo:'OZSSO01M1', desc:'Sol. Salina Ozonizada x1', sesiones:1 },
+  { codigo:'OZSSO05M1', desc:'Sol. Salina Ozonizada x5', sesiones:5 },
+  { codigo:'OZSAU01M1', desc:'Sauna Ozonizada x1', sesiones:1 },
+  { codigo:'OZSAU05M1', desc:'Sauna Ozonizada x5', sesiones:5 },
+];
 
 function renderLineasNuevoPaquete() {
   const cont = document.getElementById('np-lineas-container');
@@ -12777,34 +12844,82 @@ function renderLineasNuevoPaquete() {
         ${npLineas.length > 1 ? `<button onclick="eliminarLineaNuevoPaquete(${i})" style="background:none;border:none;color:var(--rojo);cursor:pointer;font-size:18px">×</button>` : ''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
+        <div style="position:relative">
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Código HIMED *</label>
-          <input type="text" value="${l.codigo||''}" placeholder="SUHEE04M1"
-            oninput="actualizarLineaNuevoPaquete(${i},'codigo',this.value)"
-            onblur="autocompletarLineaNuevoPaquete(${i})"
+          <input type="text" id="np-codigo-${i}" value="${l.codigo||''}" placeholder="Escribe para buscar..."
+            oninput="buscarCodigoHimed(${i},this.value)"
+            autocomplete="off"
             style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+          <div id="np-sugerencias-${i}" style="position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--gris-m);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:100;display:none;max-height:180px;overflow-y:auto"></div>
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Descripción</label>
-          <input type="text" value="${l.tipo||''}" placeholder="Se llena automático"
+          <input type="text" id="np-desc-${i}" value="${l.tipo||''}" placeholder="Se llena automático"
             oninput="actualizarLineaNuevoPaquete(${i},'tipo',this.value)"
-            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box;background:${l.tipo?'#fff':'var(--gris-xl)'}">
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Total sesiones</label>
-          <input type="number" value="${l.total||1}" min="1" max="20"
+          <input type="number" id="np-total-${i}" value="${l.total||''}" min="1" max="20" placeholder="Auto"
             oninput="actualizarLineaNuevoPaquete(${i},'total',parseInt(this.value)||1)"
-            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box;background:${l.total>1?'#fff':'var(--gris-xl)'}">
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gris)">Médico</label>
-          <input type="text" value="${l.medico||''}" placeholder="M1"
+          <input type="text" id="np-medico-${i}" value="${l.medico||''}" placeholder="Auto"
             oninput="actualizarLineaNuevoPaquete(${i},'medico',this.value)"
-            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box">
+            style="width:100%;margin-top:4px;padding:9px 11px;border:1.5px solid var(--gris-m);border-radius:8px;font-size:13px;box-sizing:border-box;background:${l.medico?'#fff':'var(--gris-xl)'}">
         </div>
       </div>
     </div>
   `).join('');
+}
+
+function buscarCodigoHimed(i, texto) {
+  actualizarLineaNuevoPaquete(i, 'codigo', texto.toUpperCase());
+  const q = texto.toUpperCase().trim();
+  const sug = document.getElementById(`np-sugerencias-${i}`);
+  if (!sug) return;
+  if (!q || q.length < 2) { sug.style.display = 'none'; return; }
+
+  const matches = CODIGOS_HIMED.filter(c => c.codigo.includes(q)).slice(0, 8);
+  if (matches.length === 0) { sug.style.display = 'none'; return; }
+
+  sug.innerHTML = matches.map(c => `
+    <div onclick="seleccionarCodigoHimed(${i},'${c.codigo}','${c.desc}',${c.sesiones})"
+      style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--gris-xl);font-size:13px"
+      onmouseover="this.style.background='var(--verde-xl)'" onmouseout="this.style.background=''">
+      <span style="font-weight:700;color:var(--negro)">${c.codigo}</span>
+      <span style="color:var(--gris);margin-left:8px">${c.desc}</span>
+      <span style="float:right;color:var(--verde);font-weight:600">${c.sesiones} ses.</span>
+    </div>
+  `).join('');
+  sug.style.display = 'block';
+}
+
+function seleccionarCodigoHimed(i, codigo, desc, sesiones) {
+  // Extraer médico del código — últimos caracteres MT seguido de número
+  const medMatch = codigo.match(/([MT]\d+)$/);
+  const medico = medMatch ? medMatch[1] : '';
+
+  npLineas[i].codigo = codigo;
+  npLineas[i].tipo   = desc;
+  npLineas[i].total  = sesiones;
+  npLineas[i].medico = medico;
+
+  // Actualizar inputs directamente sin re-renderizar todo
+  const codInput  = document.getElementById(`np-codigo-${i}`);
+  const descInput = document.getElementById(`np-desc-${i}`);
+  const totInput  = document.getElementById(`np-total-${i}`);
+  const medInput  = document.getElementById(`np-medico-${i}`);
+  if (codInput)  { codInput.value  = codigo;  codInput.style.borderColor  = 'var(--verde)'; }
+  if (descInput) { descInput.value = desc;    descInput.style.background  = '#fff'; }
+  if (totInput)  { totInput.value  = sesiones; totInput.style.background  = '#fff'; }
+  if (medInput)  { medInput.value  = medico;   medInput.style.background  = '#fff'; }
+
+  // Ocultar sugerencias
+  const sug = document.getElementById(`np-sugerencias-${i}`);
+  if (sug) sug.style.display = 'none';
 }
 
 function agregarLineaNuevoPaquete() {
@@ -12890,11 +13005,11 @@ async function importarFacturaNuevoPaquete(input, tipo) {
     const jsonStr = texto.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(jsonStr);
 
-    // Llenar formulario
-    if (parsed.factura) document.getElementById('np-factura').value = parsed.factura;
-    if (parsed.fecha)   document.getElementById('np-fecha').value = parsed.fecha;
-    if (parsed.nombre)  document.getElementById('np-nombre').value = parsed.nombre;
-    if (parsed.cc)      document.getElementById('np-cc').value = parsed.cc;
+    // Llenar formulario y npDatos
+    if (parsed.factura) { npDatos.factura = parsed.factura; document.getElementById('np-factura').value = parsed.factura; }
+    if (parsed.fecha)   { npDatos.fecha   = parsed.fecha;   document.getElementById('np-fecha').value   = parsed.fecha; }
+    if (parsed.nombre)  { npDatos.nombre  = parsed.nombre;  document.getElementById('np-nombre').value  = parsed.nombre; }
+    if (parsed.cc)      { npDatos.cc      = parsed.cc;      document.getElementById('np-cc').value      = parsed.cc; }
     if (parsed.lineas?.length) {
       npLineas = parsed.lineas.map(l => ({
         codigo: l.codigo || '',
@@ -12914,10 +13029,18 @@ async function importarFacturaNuevoPaquete(input, tipo) {
 }
 
 async function confirmarNuevoPaquete() {
-  const factura = document.getElementById('np-factura')?.value?.trim();
-  const fecha   = document.getElementById('np-fecha')?.value;
-  const nombre  = document.getElementById('np-nombre')?.value?.trim();
-  const cc      = document.getElementById('np-cc')?.value?.trim();
+  // Leer también directamente del DOM como respaldo
+  const facturaEl = document.getElementById('np-factura');
+  const fechaEl   = document.getElementById('np-fecha');
+  const nombreEl  = document.getElementById('np-nombre');
+  const ccEl      = document.getElementById('np-cc');
+
+  const factura = (npDatos.factura || facturaEl?.value || '').trim();
+  const fecha   = (npDatos.fecha   || fechaEl?.value   || '');
+  const nombre  = (npDatos.nombre  || nombreEl?.value  || '').trim();
+  const cc      = (npDatos.cc      || ccEl?.value      || '').trim();
+
+  console.log('Valores leídos:', { factura, fecha, nombre, cc, lineas: npLineas });
 
   if (!factura) { alert('Ingresa el número de factura'); return; }
   if (!nombre)  { alert('Ingresa el nombre del paciente'); return; }
@@ -12957,8 +13080,10 @@ async function confirmarNuevoPaquete() {
     });
   });
 
+  sheetsSaving = true;
   await guardarSesionesEnSheets();
   await guardarAuditoriaEnSheets();
+  sheetsSaving = false;
 
   closeModal('modal-nuevo-paquete');
   buildStats();
