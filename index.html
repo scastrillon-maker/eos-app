@@ -11053,16 +11053,16 @@ function buildStock(filtroActivo) {
   else if (f === 'ok')      datos = datos.filter(p => p.stock >= p.min);
   // Filtros por tipo (enfermera)
   else if (f === 'ampollas')     datos = datos.filter(p => p.tipo === 'medicamento' && p.categoria === 'enfermeria');
-  else if (f === 'dispositivos') datos = datos.filter(p => p.tipo === 'dispositivos');
-  else if (f === 'gases')        datos = datos.filter(p => p.tipo === 'gases');
+  else if (f === 'dispositivos') datos = datos.filter(p => p.tipo === 'dispositivo');
+  else if (f === 'gases')        datos = datos.filter(p => p.tipo === 'gas');
   else if (f === 'suplementos')  datos = datos.filter(p => p.tipo === 'suplemento');
   // Filtros por proveedor (admin/gerencia)
   else if (f === 'alfa')         datos = datos.filter(p => p.tipo === 'medicamento' && p.categoria === 'enfermeria');
   else if (f === 'nutrabiotics') datos = datos.filter(p => p.tipo === 'suplemento');
-  else if (f === 'tecnomedica')  datos = datos.filter(p => p.tipo === 'dispositivos');
+  else if (f === 'tecnomedica')  datos = datos.filter(p => p.tipo === 'dispositivo');
   else if (f === 'solaris')      datos = datos.filter(p => p.proveedor === 'Solaris');
   else if (f === 'vidox')        datos = datos.filter(p => p.proveedor === 'Vidox');
-  else if (f === 'bioxigen')     datos = datos.filter(p => p.tipo === 'gases');
+  else if (f === 'bioxigen')     datos = datos.filter(p => p.tipo === 'gas');
 
   // Búsqueda rápida por nombre o código
   const busqueda = (document.getElementById('stock-busqueda')?.value || '').toLowerCase().trim();
@@ -13861,14 +13861,21 @@ function renderMpInsumos() {
     return;
   }
   tbody.innerHTML = mpInsumos.map((ins, i) => `
-    <tr style="border-bottom:1px solid var(--gris-m)">
-      <td style="padding:8px 10px">
-        <input value="${ins.codigoInsumo}" onchange="mpInsumos[${i}].codigoInsumo=this.value"
-          style="width:100px;padding:6px 8px;border:1px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px">
+    <tr style="border-bottom:1px solid var(--gris-m)" id="mp-ins-row-${i}">
+      <td style="padding:8px 10px;position:relative">
+        <input value="${ins.codigoInsumo}" id="mp-cod-${i}"
+          onchange="mpInsumos[${i}].codigoInsumo=this.value"
+          oninput="mpAutocompletarCodigo(${i},this.value)"
+          style="width:110px;padding:6px 8px;border:1px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px">
+        <div id="mp-sug-cod-${i}" style="display:none;position:absolute;top:100%;left:0;background:white;border:1px solid var(--gris-m);border-radius:8px;box-shadow:var(--sombra-m);z-index:999;max-height:180px;overflow-y:auto;min-width:280px"></div>
       </td>
-      <td style="padding:8px 10px">
-        <input value="${ins.nombreInsumo}" onchange="mpInsumos[${i}].nombreInsumo=this.value"
-          style="width:100%;padding:6px 8px;border:1px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px">
+      <td style="padding:8px 10px;position:relative">
+        <input value="${ins.nombreInsumo}" id="mp-nom-${i}"
+          onchange="mpInsumos[${i}].nombreInsumo=this.value"
+          oninput="mpAutocompletarNombre(${i},this.value)"
+          style="width:100%;padding:6px 8px;border:1px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px"
+          placeholder="Nombre del insumo...">
+        <div id="mp-sug-nom-${i}" style="display:none;position:absolute;top:100%;left:0;background:white;border:1px solid var(--gris-m);border-radius:8px;box-shadow:var(--sombra-m);z-index:999;max-height:180px;overflow-y:auto;min-width:300px"></div>
       </td>
       <td style="padding:8px 10px;text-align:center">
         <input type="number" min="1" value="${ins.cantidadEstandar}" onchange="mpInsumos[${i}].cantidadEstandar=+this.value"
@@ -13880,6 +13887,66 @@ function renderMpInsumos() {
       </td>
     </tr>`).join('');
 }
+
+function mpGetCatalogo() {
+  // Combinar STOCK_DATA + STOCK_FALLBACK para sugerencias
+  const mapa = {};
+  STOCK_FALLBACK.forEach(p => { mapa[p.codigo] = { codigo: p.codigo, nombre: p.nombre }; });
+  STOCK_DATA.forEach(p => { mapa[p.codigo] = { codigo: p.codigo, nombre: p.nombre }; });
+  return Object.values(mapa);
+}
+
+function mpMostrarSugerencias(idx, campo, items) {
+  const divId = campo === 'cod' ? `mp-sug-cod-${idx}` : `mp-sug-nom-${idx}`;
+  const div = document.getElementById(divId);
+  if (!div) return;
+  if (!items.length) { div.style.display = 'none'; return; }
+  div.innerHTML = items.slice(0,8).map(p => `
+    <div onclick="mpSeleccionarInsumo(${idx},'${p.codigo.replace(/'/g,"\\'")}','${p.nombre.replace(/'/g,"\\'")}')"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gris-m)"
+      onmouseover="this.style.background='var(--verde-l)'" onmouseout="this.style.background='white'">
+      <span style="font-weight:700;color:var(--verde)">${p.codigo}</span>
+      <span style="color:var(--gris);margin-left:8px">${p.nombre}</span>
+    </div>`).join('');
+  div.style.display = 'block';
+}
+
+function mpAutocompletarCodigo(i, val) {
+  mpInsumos[i].codigoInsumo = val;
+  if (val.length < 2) { const d = document.getElementById(`mp-sug-cod-${i}`); if(d) d.style.display='none'; return; }
+  const q = val.toUpperCase();
+  const res = mpGetCatalogo().filter(p => p.codigo.toUpperCase().includes(q));
+  mpMostrarSugerencias(i, 'cod', res);
+}
+
+function mpAutocompletarNombre(i, val) {
+  mpInsumos[i].nombreInsumo = val;
+  if (val.length < 2) { const d = document.getElementById(`mp-sug-nom-${i}`); if(d) d.style.display='none'; return; }
+  const q = val.toLowerCase();
+  const res = mpGetCatalogo().filter(p => p.nombre.toLowerCase().includes(q));
+  mpMostrarSugerencias(i, 'nom', res);
+}
+
+function mpSeleccionarInsumo(i, codigo, nombre) {
+  mpInsumos[i].codigoInsumo = codigo;
+  mpInsumos[i].nombreInsumo = nombre;
+  const ic = document.getElementById(`mp-cod-${i}`);
+  const in_ = document.getElementById(`mp-nom-${i}`);
+  if (ic) ic.value = codigo;
+  if (in_) in_.value = nombre;
+  // Cerrar ambos dropdowns
+  const dc = document.getElementById(`mp-sug-cod-${i}`);
+  const dn = document.getElementById(`mp-sug-nom-${i}`);
+  if (dc) dc.style.display = 'none';
+  if (dn) dn.style.display = 'none';
+}
+
+// Cerrar dropdowns al hacer clic fuera
+document.addEventListener('click', e => {
+  if (!e.target.closest('[id^="mp-ins-row-"]')) {
+    document.querySelectorAll('[id^="mp-sug-"]').forEach(d => d.style.display = 'none');
+  }
+});
 
 function mpAgregarInsumo() {
   mpInsumos.push({ codigoInsumo:'', nombreInsumo:'', cantidadEstandar:1 });
