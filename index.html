@@ -3672,6 +3672,8 @@ function getFallback(codigo) {
 // dispositivo: catéter, macrogotero, Tecnomedica, Vidox
 // gas: oxígeno medicinal (Bioxigen)
 function getTipoProducto(codigo, proveedor) {
+  // 0. Override explícito por código — tiene máxima prioridad
+  if (codigo && CATEGORIA_OVERRIDE[codigo]) return CATEGORIA_OVERRIDE[codigo];
   // 1. Buscar en STOCK_FALLBACK (tiene el tipo ya asignado correctamente)
   const fb = getFallback(codigo);
   if (fb?.tipo) return fb.tipo;
@@ -9015,6 +9017,37 @@ const CATEGORIA_OVERRIDE = {
   // Insumos IV de Nutrabiotics — son medicamentos, no suplementos
   'NBALIVI1': 'medicamento',  // A-LipoR I.V
   'NBBLU01':  'medicamento',  // Bluessens (azul de metileno)
+  // Tecnomedica — dispositivos
+  'CIVC01':    'dispositivo',
+  '2362':      'dispositivo',
+  '3624':      'dispositivo',
+  '5441':      'dispositivo',
+  '2965':      'dispositivo',
+  '5726':      'dispositivo',
+  '6638':      'dispositivo',
+  '6639':      'dispositivo',
+  'DISP-VEN25':'dispositivo',
+  'DISP-TAPE': 'dispositivo',
+  'DISP-SVAG': 'dispositivo',
+  'B2126':     'dispositivo',
+  '20201599':  'dispositivo',
+  '80801005':  'dispositivo',
+  '8114':      'dispositivo',
+  '3250S':     'dispositivo',
+  '3250L':     'dispositivo',
+  '3231':      'dispositivo',
+  '10104150':  'dispositivo',
+  '0619':      'dispositivo',
+  'BAN001':    'dispositivo',
+  '10104133':  'dispositivo',
+  '10104139':  'dispositivo',
+  // Tecnomedica — solución salina es medicamento
+  '10102136':  'medicamento',  // SS 500ml
+  'TECS-SS100':'medicamento',  // SS 100ml
+  'TECS-SS250':'medicamento',  // SS 250ml
+  'TECS-SS500':'medicamento',  // SS 500ml
+  // Gas
+  'BIOXIGEN':  'gas',
 };
 
 function getCategoriaProducto(p) {
@@ -11738,6 +11771,41 @@ function completarRegistroSesion() {
     if (enStock && enStock.stock > 0) enStock.stock -= 1;
   });
 
+  // ── DESCUENTO DE INSUMOS POR PROTOCOLO ──────────────────
+  const insumosDescontados = [];
+  const insumosFaltantes   = [];
+
+  if (paqueteActivo?.codigoHimed) {
+    // Obtener prefijo del código HIMED → código de protocolo
+    const prefijos = ['SUHEE','SUVIC','SUALR','SUBLU','OZAMB','OZAMA','OZIRE','OZIVA','OZINF','OZSSO','GLUCO'];
+    const prefijo  = prefijos.find(p => paqueteActivo.codigoHimed.startsWith(p));
+    const protocolo = prefijo ? PROTOCOLOS_DATA.find(p => p.codigoProcedimiento === prefijo && p.estado === 'activo') : null;
+
+    if (protocolo) {
+      protocolo.insumos.forEach(ins => {
+        const enStock = STOCK_DATA.find(p => p.codigo === ins.codigoInsumo);
+        if (enStock) {
+          const cantidadADescontar = ins.cantidadEstandar || 1;
+          if (enStock.stock >= cantidadADescontar) {
+            enStock.stock -= cantidadADescontar;
+            insumosDescontados.push(`${ins.nombreInsumo} x${cantidadADescontar}`);
+          } else if (enStock.stock > 0) {
+            // Stock parcial — descontar lo que hay y registrar faltante
+            const parcial = enStock.stock;
+            enStock.stock = 0;
+            insumosDescontados.push(`${ins.nombreInsumo} x${parcial}`);
+            insumosFaltantes.push(`${ins.nombreInsumo} (faltaron ${cantidadADescontar - parcial})`);
+          } else {
+            // Sin stock — registrar faltante
+            insumosFaltantes.push(`${ins.nombreInsumo} x${cantidadADescontar}`);
+          }
+        }
+        // Si el insumo no está en STOCK_DATA no se descuenta (gas Bioxigen, etc.)
+      });
+    }
+  }
+  // ────────────────────────────────────────────────────────
+
   if (paqueteActivo) {
     const idx = SESIONES_DATA.findIndex(s =>
       s.cc === paqueteActivo.cc && s.factura === paqueteActivo.factura
@@ -11753,15 +11821,30 @@ function completarRegistroSesion() {
   const todasAmpollas = [...selectedAmpollas, ...adicionales.filter(Boolean)];
   const adicionalesStr = adicionales.filter(Boolean).length > 0
     ? ` · Adicionales: ${adicionales.filter(Boolean).join(', ')}` : '';
+  const insumosStr = insumosDescontados.length > 0
+    ? ` · Insumos: ${insumosDescontados.join(', ')}` : '';
 
   AUDIT_LOG.unshift({
     fecha: hoy.toISOString().slice(0,10),
     hora:  hoy.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
     usuario: currentUser?.nombre, rol: currentUser?.rol,
     accion:'Sesión aplicada',
-    detalle:`CC ${paqueteActivo?.cc||'—'} · ${paqueteActivo?.factura||'—'} · ${paqueteActivo?.tipo||'—'} · Sesión ${paqueteActivo?.sesion||'—'}/${paqueteActivo?.total||'—'} · ${todasAmpollas.join(', ')||'Sin ampollas'}`,
+    detalle:`CC ${paqueteActivo?.cc||'—'} · ${paqueteActivo?.factura||'—'} · ${paqueteActivo?.tipo||'—'} · Sesión ${paqueteActivo?.sesion||'—'}/${paqueteActivo?.total||'—'} · ${todasAmpollas.join(', ')||'Sin ampollas'}${insumosStr}`,
     estado:'ok'
   });
+
+  // Registrar faltantes de insumos si los hay
+  if (insumosFaltantes.length > 0) {
+    AUDIT_LOG.unshift({
+      fecha: hoy.toISOString().slice(0,10),
+      hora:  hoy.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      usuario: currentUser?.nombre, rol: currentUser?.rol,
+      accion:'Faltante en sala',
+      detalle:`Insumos sin stock: ${insumosFaltantes.join(', ')} · CC ${paqueteActivo?.cc||'—'}`,
+      estado:'alerta'
+    });
+    mostrarToast('⚠️ Insumos sin stock', insumosFaltantes.join(', '), 'amber');
+  }
 
   guardarStockEnSheets();
   guardarAuditoriaEnSheets();
@@ -11770,7 +11853,9 @@ function completarRegistroSesion() {
   resetAdicionales();
   const toastMsg = todasAmpollas.length > 0
     ? `Ampollas: ${selectedAmpollas.join(', ')}${adicionalesStr}`
-    : 'Sesión completada';
+    : insumosDescontados.length > 0
+      ? `Insumos descontados: ${insumosDescontados.length}`
+      : 'Sesión completada';
   mostrarToast('✅ Sesión registrada', toastMsg, 'verde');
   buildStock();
   const cc = document.getElementById('search-cc')?.value?.trim();
@@ -13394,22 +13479,6 @@ let PROTOCOLOS_DATA = [
     version: '1', creadoPor: 'Sistema', fechaCreacion: '2026-05-01', estado: 'activo',
   },
   {
-    codigoProcedimiento: 'SUAZM',
-    nombreProcedimiento: 'Azul de Metileno IV',
-    grupoMayor: 'Sueroterapia',
-    ejecutadoPor: 'enfermeria',
-    insumos: [
-      { codigoInsumo:'NBBLU01',    nombreInsumo:'Bluessens (Azul de Metileno)', cantidadEstandar:1 },
-      { codigoInsumo:'TECS-SS250', nombreInsumo:'Solución salina 0.9% 250ml', cantidadEstandar:1 },
-      { codigoInsumo:'CIVC01',     nombreInsumo:'Catéter 24G', cantidadEstandar:1 },
-      { codigoInsumo:'DISP-VEN25', nombreInsumo:'Venocat / Aguja 25G (alternativa)', cantidadEstandar:1 },
-      { codigoInsumo:'DISP-MACRO', nombreInsumo:'Macrogotero', cantidadEstandar:1 },
-      { codigoInsumo:'DISP-GASAT', nombreInsumo:'Gasa estéril 10x10', cantidadEstandar:2 },
-      { codigoInsumo:'DISP-TAPE',  nombreInsumo:'Tegaderm / Esparadrapo', cantidadEstandar:1 },
-    ],
-    version: '1', creadoPor: 'Sistema', fechaCreacion: '2026-05-01', estado: 'activo',
-  },
-  {
     codigoProcedimiento: 'SUALR',
     nombreProcedimiento: 'A-LipoR IV',
     grupoMayor: 'Sueroterapia',
@@ -13427,7 +13496,7 @@ let PROTOCOLOS_DATA = [
   },
   {
     codigoProcedimiento: 'SUBLU',
-    nombreProcedimiento: 'BLUESSENS IV',
+    nombreProcedimiento: 'Bluessens (Azul de Metileno IV)',
     grupoMayor: 'Sueroterapia',
     ejecutadoPor: 'enfermeria',
     insumos: [
