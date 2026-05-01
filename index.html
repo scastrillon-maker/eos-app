@@ -2006,39 +2006,47 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
         <!-- Panel de predicción inteligente -->
         <div id="prediccion-panel" style="margin-bottom:20px"></div>
         <div style="background:white;border-radius:var(--radio-l);padding:24px;box-shadow:var(--sombra);border:1px solid var(--gris-m);margin-bottom:20px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <div>
-              <div style="font-size:16px;font-weight:700;color:var(--verde)">Farmacia Alfa</div>
-              <div style="font-size:12px;color:var(--gris);margin-top:2px">Ampollas HEEL + Vitamina C IV · Meta mínima: $10.000.000</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;cursor:pointer" onclick="toggleSeccionPedido('alfa')">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span id="toggle-alfa" style="font-size:18px;transition:.2s">▾</span>
+              <div>
+                <div style="font-size:16px;font-weight:700;color:var(--verde)">Farmacia Alfa</div>
+                <div style="font-size:12px;color:var(--gris);margin-top:2px">Ampollas HEEL + Vitamina C IV · Meta mínima: $10.000.000</div>
+              </div>
             </div>
-            <div id="alfa-semaforo" style="padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700"></div>
-            <button onclick="generarPDFPedido('alfa')" id="btn-hacer-pedido-alfa"
-              style="background:var(--azul);color:white;border:none;border-radius:var(--radio);padding:10px 18px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer">
-              📄 PDF Farmacia Alfa
-            </button>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div id="alfa-semaforo" style="padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700"></div>
+              <div id="alfa-total-mini" style="font-size:14px;font-weight:700;color:var(--negro)"></div>
+              <button onclick="event.stopPropagation();generarPDFPedido('alfa')" id="btn-hacer-pedido-alfa"
+                style="background:var(--azul);color:white;border:none;border-radius:var(--radio);padding:10px 18px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer">
+                📄 PDF Farmacia Alfa
+              </button>
+            </div>
           </div>
 
-          <table class="data-table" style="margin-bottom:16px">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Stock actual</th>
-                <th>Mínimo</th>
-                <th>Estado</th>
-                <th>Cant. sugerida</th>
-                <th>Precio unit.</th>
-                <th>Subtotal</th>
-                <th>Incluir</th>
-              </tr>
-            </thead>
-            <tbody id="pedido-alfa-tbody"></tbody>
-          </table>
+          <div id="cuerpo-alfa" style="margin-top:16px">
+            <table class="data-table" style="margin-bottom:16px">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Stock actual</th>
+                  <th>Mínimo</th>
+                  <th>Estado</th>
+                  <th>Cant. sugerida</th>
+                  <th>Precio unit.</th>
+                  <th>Subtotal</th>
+                  <th>Incluir</th>
+                </tr>
+              </thead>
+              <tbody id="pedido-alfa-tbody"></tbody>
+            </table>
 
-          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--gris-l);border-radius:var(--radio);padding:14px 18px">
-            <div style="font-size:14px;font-weight:600">Total pedido Farmacia Alfa</div>
-            <div style="display:flex;align-items:center;gap:20px">
-              <div style="font-size:20px;font-weight:700;color:var(--negro)" id="alfa-total">$0</div>
-              <div id="alfa-meta-badge"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--gris-l);border-radius:var(--radio);padding:14px 18px">
+              <div style="font-size:14px;font-weight:600">Total pedido Farmacia Alfa</div>
+              <div style="display:flex;align-items:center;gap:20px">
+                <div style="font-size:20px;font-weight:700;color:var(--negro)" id="alfa-total">$0</div>
+                <div id="alfa-meta-badge"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -5805,19 +5813,25 @@ async function cargarDesdeSheets() {
 // ── Guardar stock en Sheets ──
 async function guardarStockEnSheets() {
   if (!gasConectado) return;
-  await gasWrite('Stock', stockToRows());
+  sheetsSaving = true;
+  try {
+    const rows = stockToRows(); // capturar antes del await
+    await gasWrite('Stock', rows);
+  } finally {
+    sheetsSaving = false;
+  }
 }
 
 // ── Guardar auditoría en Sheets ──
 async function guardarAuditoriaEnSheets() {
   if (!gasConectado) return;
-  await gasWrite('Auditoria', auditToRows());
+  try { await gasWrite('Auditoria', auditToRows()); } catch(e) { console.warn('Error guardando auditoría:', e); }
 }
 
 // ── Guardar pedidos en Sheets ──
 async function guardarPedidosEnSheets() {
   if (!gasConectado) return;
-  await gasWrite('Pedidos', pedidosToRows());
+  try { await gasWrite('Pedidos', pedidosToRows()); } catch(e) { console.warn('Error guardando pedidos:', e); }
 }
 
 // ── Serialización de SESIONES_DATA ──
@@ -6439,39 +6453,56 @@ function renderPedidoOtros() {
       </tr>`;
     }).join('');
 
+    const provKey = prov.replace(/[\s/]/g,'-');
+    const criticos = productoOrdenados.filter(p => p.stock < p.min * 0.5).length;
+    const bajos    = productoOrdenados.filter(p => p.stock >= p.min * 0.5 && p.stock < p.min).length;
+    const alertaBadge = criticos > 0
+      ? `<span style="background:var(--rojo-l);color:var(--rojo);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">🔴 ${criticos} crítico${criticos>1?'s':''}</span>`
+      : bajos > 0
+      ? `<span style="background:var(--amber-l);color:var(--amber);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">🟡 ${bajos} bajo${bajos>1?'s':''}</span>`
+      : `<span style="background:var(--verde-l);color:var(--verde);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">✅ OK</span>`;
+
     return `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div>
-            <div style="font-size:16px;font-weight:700;color:var(--azul)">${prov}</div>
-            <div style="font-size:12px;color:var(--gris);margin-top:2px">Sin pedido mínimo</div>
+      <div style="background:white;border-radius:var(--radio-l);padding:24px;box-shadow:var(--sombra);border:1px solid var(--gris-m);margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleSeccionPedido('${provKey}')">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span id="toggle-${provKey}" style="font-size:18px;transition:.2s">▾</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:var(--azul)">${prov}</div>
+              <div style="font-size:12px;color:var(--gris);margin-top:2px">${productoOrdenados.length} productos</div>
+            </div>
+            ${alertaBadge}
           </div>
           <div style="display:flex;align-items:center;gap:14px">
             <div style="text-align:right">
-              <div style="font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.06em">Total pedido</div>
-              <div style="font-size:18px;font-weight:700;color:var(--azul)" id="total-${prov.replace(/\s/g,'-')}">$0</div>
+              <div style="font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.06em">Total</div>
+              <div style="font-size:16px;font-weight:700;color:var(--azul)" id="total-${provKey}">$0</div>
             </div>
-            <button class="btn-primary" onclick="generarPDFPedido('${prov}')"
+            <button class="btn-primary" onclick="event.stopPropagation();generarPDFPedido('${prov}')"
               style="font-size:13px;padding:10px 18px;background:var(--azul)">
-              🛒 Hacer pedido — ${prov}
+              🛒 Hacer pedido
             </button>
           </div>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Stock actual</th>
-              <th>Mínimo</th>
-              <th>Estado</th>
-              <th>Cant. a pedir</th>
-              <th>Precio unit.</th>
-              <th>Subtotal</th>
-              <th>Incluir</th>
-            </tr>
-          </thead>
-          <tbody>${filas}</tbody>
-        </table>
+        <div id="cuerpo-${provKey}" style="margin-top:16px">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Stock actual</th>
+                <th>Mínimo</th>
+                <th>Estado</th>
+                <th>Cant. a pedir</th>
+                <th>Precio unit.</th>
+                <th>Subtotal</th>
+                <th>Incluir</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>
       </div>`;
+  }).join('');
   }).join('');
 
   // Calcular totales iniciales
@@ -6489,13 +6520,23 @@ function togglePedidoAlfa(codigo, checked) {
   updateTotalAlfa();
 }
 function actualizarTotalProveedor(prov) {
-  const el = document.getElementById('total-' + prov.replace(/\s/g,'-'));
+  const provKey = prov.replace(/[\s/]/g,'-');
+  const el = document.getElementById('total-' + provKey);
   if (!el) return;
   const total = PEDIDO_OTROS
     .filter(p => p.proveedor === prov && pedidoOtrosItems[p.codigo]?.incluir)
     .reduce((sum, p) => sum + (pedidoOtrosItems[p.codigo]?.cantidad || 0) * p.precio, 0);
   el.textContent = '$' + total.toLocaleString('es-CO');
   el.style.color = total > 0 ? 'var(--azul)' : 'var(--gris)';
+}
+
+function toggleSeccionPedido(key) {
+  const cuerpo  = document.getElementById('cuerpo-' + key);
+  const flecha  = document.getElementById('toggle-' + key);
+  if (!cuerpo) return;
+  const abierto = cuerpo.style.display !== 'none';
+  cuerpo.style.display = abierto ? 'none' : 'block';
+  if (flecha) flecha.textContent = abierto ? '▸' : '▾';
 }
 
 function updatePedidoOtros(codigo, val, prov) {
@@ -12610,10 +12651,10 @@ function registrarEntrada() {
   entradaItems = [];
   buildStats();
   renderPedidosPendientes();
-  buildStock();
-  guardarStockEnSheets();
+  await guardarStockEnSheets();
   guardarPedidosEnSheets();
-  guardarAuditoriaEnSheets(); // Siempre refrescar stock
+  guardarAuditoriaEnSheets();
+  buildStock();
 
   // Solo mencionar actas si hay productos regulados (medicamentos, dispositivos, gases)
   const isEnfermera = ['enf1','enf2'].includes(currentUser?.id);
