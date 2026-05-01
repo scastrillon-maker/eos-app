@@ -5695,6 +5695,7 @@ function rowsToSesiones(rows) {
 
   SESIONES_DATA.length = 0;
   filasValidas.forEach(r => {
+    console.log('Sesión fila:', r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
     let ampollas = [];
     try { ampollas = JSON.parse(r[12] || '[]'); } catch(e) {}
     SESIONES_DATA.push({
