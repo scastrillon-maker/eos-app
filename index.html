@@ -12785,6 +12785,7 @@ let npDatos = { factura: '', fecha: '', nombre: '', cc: '' };
 function abrirNuevoPaquete() {
   npLineas = [];
   npDatos = { factura: '', fecha: new Date().toISOString().slice(0,10), nombre: '', cc: '' };
+  npGuardando = false;
   renderFormNuevoPaquete();
   agregarLineaNuevoPaquete();
   openModal('modal-nuevo-paquete');
@@ -13033,7 +13034,11 @@ async function importarFacturaNuevoPaquete(input, tipo) {
   }
 }
 
+let npGuardando = false; // bandera para evitar doble clic
+
 async function confirmarNuevoPaquete() {
+  if (npGuardando) return; // ya está guardando — ignorar clic adicional
+  npGuardando = true;
   // Leer también directamente del DOM como respaldo
   const facturaEl = document.getElementById('np-factura');
   const fechaEl   = document.getElementById('np-fecha');
@@ -13094,6 +13099,7 @@ async function confirmarNuevoPaquete() {
   sheetsSaving = false;
 
   if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '✅ Crear paquete(s) y guardar'; }
+  npGuardando = false;
 
   closeModal('modal-nuevo-paquete');
   buildStats();
