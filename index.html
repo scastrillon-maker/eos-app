@@ -12804,42 +12804,38 @@ function renderFormNuevoPaquete() {
   if (cc)  cc.value  = npDatos.cc;
 }
 
-// Catálogo de códigos HIMED conocidos para autocompletado
-const CODIGOS_HIMED = [
-  { codigo:'SUHEE01M1', desc:'Suero HEEL x1', sesiones:1 },
-  { codigo:'SUHEE01M2', desc:'Suero HEEL x1', sesiones:1 },
-  { codigo:'SUHEE04M1', desc:'Suero HEEL x4', sesiones:4 },
-  { codigo:'SUHEE04M2', desc:'Suero HEEL x4', sesiones:4 },
-  { codigo:'SUHEE04M3', desc:'Suero HEEL x4', sesiones:4 },
-  { codigo:'SUHEE04M4', desc:'Suero HEEL x4', sesiones:4 },
-  { codigo:'SUHEE04M5', desc:'Suero HEEL x4', sesiones:4 },
-  { codigo:'SUHEE10M1', desc:'Suero HEEL x10', sesiones:10 },
-  { codigo:'SUHEE10M2', desc:'Suero HEEL x10', sesiones:10 },
-  { codigo:'SUVIC01M1', desc:'Vitamina C IV x1', sesiones:1 },
-  { codigo:'SUVIC05M1', desc:'Vitamina C IV x5', sesiones:5 },
-  { codigo:'SUVIC10M1', desc:'Vitamina C IV x10', sesiones:10 },
-  { codigo:'SUAZM01M1', desc:'Azul de Metileno IV x1', sesiones:1 },
-  { codigo:'SUAZM05M1', desc:'Azul de Metileno IV x5', sesiones:5 },
-  { codigo:'SUALR01M1', desc:'A-LipoR IV x1', sesiones:1 },
-  { codigo:'SUALR05M1', desc:'A-LipoR IV x5', sesiones:5 },
-  { codigo:'SUBLU01M1', desc:'BLUESSENS IV x1', sesiones:1 },
-  { codigo:'SUBLU05M1', desc:'BLUESSENS IV x5', sesiones:5 },
-  { codigo:'SUETV01M1', desc:'ETNV x1', sesiones:1 },
-  { codigo:'OZAMB01M1', desc:'Autohemoterapia Menor x1', sesiones:1 },
-  { codigo:'OZAMB05M1', desc:'Autohemoterapia Menor x5', sesiones:5 },
-  { codigo:'OZAMB10M1', desc:'Autohemoterapia Menor x10', sesiones:10 },
-  { codigo:'OZAMA01M1', desc:'Autohemoterapia Mayor x1', sesiones:1 },
-  { codigo:'OZAMA05M1', desc:'Autohemoterapia Mayor x5', sesiones:5 },
-  { codigo:'OZIRE01M1', desc:'Insuflación Rectal x1', sesiones:1 },
-  { codigo:'OZIRE05M1', desc:'Insuflación Rectal x5', sesiones:5 },
-  { codigo:'OZIRE10M1', desc:'Insuflación Rectal x10', sesiones:10 },
-  { codigo:'OZIVA01M1', desc:'Insuflación Vaginal x1', sesiones:1 },
-  { codigo:'OZIVA05M1', desc:'Insuflación Vaginal x5', sesiones:5 },
-  { codigo:'OZSSO01M1', desc:'Sol. Salina Ozonizada x1', sesiones:1 },
-  { codigo:'OZSSO05M1', desc:'Sol. Salina Ozonizada x5', sesiones:5 },
-  { codigo:'OZSAU01M1', desc:'Sauna Ozonizada x1', sesiones:1 },
-  { codigo:'OZSAU05M1', desc:'Sauna Ozonizada x5', sesiones:5 },
-];
+// Catálogo de códigos HIMED — se generan para todos los médicos M1-M9 y T0
+const CODIGOS_HIMED = (() => {
+  const medicos = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','T0'];
+  const base = [
+    { pref:'SUHEE', sesiones:[1,4,10], desc:'Suero HEEL' },
+    { pref:'SUVIC', sesiones:[1,5,10], desc:'Vitamina C IV' },
+    { pref:'SUAZM', sesiones:[1,5,10], desc:'Azul de Metileno IV' },
+    { pref:'SUALR', sesiones:[1,5],    desc:'A-LipoR IV' },
+    { pref:'SUBLU', sesiones:[1,5],    desc:'BLUESSENS IV' },
+    { pref:'SUETV', sesiones:[1],      desc:'ETNV' },
+    { pref:'OZAMB', sesiones:[1,5,10], desc:'Autohemoterapia Menor' },
+    { pref:'OZAMA', sesiones:[1,5],    desc:'Autohemoterapia Mayor' },
+    { pref:'OZIRE', sesiones:[1,5,10], desc:'Insuflación Rectal' },
+    { pref:'OZIVA', sesiones:[1,5],    desc:'Insuflación Vaginal' },
+    { pref:'OZSSO', sesiones:[1,5],    desc:'Sol. Salina Ozonizada' },
+    { pref:'OZSAU', sesiones:[1,5],    desc:'Sauna Ozonizada' },
+  ];
+  const lista = [];
+  base.forEach(b => {
+    b.sesiones.forEach(n => {
+      medicos.forEach(m => {
+        const nn = String(n).padStart(2,'0');
+        lista.push({
+          codigo: `${b.pref}${nn}${m}`,
+          desc:   n === 1 ? b.desc : `${b.desc} x${n}`,
+          sesiones: n
+        });
+      });
+    });
+  });
+  return lista;
+})();
 
 function renderLineasNuevoPaquete() {
   const cont = document.getElementById('np-lineas-container');
@@ -12905,7 +12901,7 @@ function buscarCodigoHimed(i, texto) {
 }
 
 function seleccionarCodigoHimed(i, codigo, desc, sesiones) {
-  // Extraer médico del código — últimos caracteres MT seguido de número
+  // Extraer médico del código — último segmento M1-M9 o T0
   const medMatch = codigo.match(/([MT]\d+)$/);
   const medico = medMatch ? medMatch[1] : '';
 
@@ -12947,8 +12943,10 @@ function autocompletarLineaNuevoPaquete(i) {
   const codigo = (npLineas[i].codigo || '').trim().toUpperCase();
   if (!codigo) return;
   const parsed = parsearCodigoHimed(codigo);
-  if (!npLineas[i].tipo) npLineas[i].tipo = descripcionDesdeCodigoHimed(codigo);
-  if (!npLineas[i].medico) npLineas[i].medico = parsed.medico;
+  const medMatch = codigo.match(/([MT]\d+)$/);
+  const medico = medMatch ? medMatch[1] : parsed.medico;
+  if (!npLineas[i].tipo)   npLineas[i].tipo   = descripcionDesdeCodigoHimed(codigo);
+  if (!npLineas[i].medico) npLineas[i].medico = medico;
   if (npLineas[i].total === 1) npLineas[i].total = parsed.total;
   renderLineasNuevoPaquete();
 }
