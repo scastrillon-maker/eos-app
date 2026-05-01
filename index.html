@@ -13085,10 +13085,15 @@ async function confirmarNuevoPaquete() {
     });
   });
 
+  const btnGuardar = document.querySelector('#modal-nuevo-paquete .btn-primary');
+  if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = '⏳ Guardando...'; }
+
   sheetsSaving = true;
   await guardarSesionesEnSheets();
   await guardarAuditoriaEnSheets();
   sheetsSaving = false;
+
+  if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '✅ Crear paquete(s) y guardar'; }
 
   closeModal('modal-nuevo-paquete');
   buildStats();
