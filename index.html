@@ -12420,6 +12420,7 @@ function buscarEnSesiones(query) {
             <span>·</span>
             <span>${s.metodo}</span>
             ${s.fechaInicio ? (() => {
+              if (s.sesion === 0) return '<span style="color:var(--gris)">Sin iniciar</span>';
               // Parsear fecha como local para evitar problema de zona horaria UTC-5
               const partes  = String(s.fechaInicio).slice(0,10).split('-');
               const inicio  = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
@@ -12696,7 +12697,7 @@ function registrarNuevaFactura() {
       ampollas:  [],
       estado:    'activo',
       categoria: prod.categoria,
-      fechaInicio: new Date().toISOString().split("T")[0],
+      fechaInicio: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
     });
     productosAgregados.push(prod.nombre);
   });
@@ -13067,7 +13068,7 @@ async function confirmarNuevoPaquete() {
       sesion:      0,
       total:       l.total || parsed.total || 1,
       medico:      l.medico || parsed.medico || '',
-      fechaInicio: fecha || new Date().toISOString().slice(0,10),
+      fechaInicio: fecha || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
       estado:      'activo',
       metodo:      metodoDesdeCodigo(codigo),
       categoria:   categoriaDesdeCodigoHimed(codigo),
