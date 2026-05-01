@@ -12411,7 +12411,7 @@ function buscarEnSesiones(query) {
         </div>
         <div class="sesion-info">
           <div class="sesion-name">
-            ${getNombrePaciente(s.cc) ? `<span style="color:var(--verde);font-weight:700">${getNombrePaciente(s.cc)}</span> &nbsp;·&nbsp; ` : ''}CC ${s.cc} &nbsp;·&nbsp; ${s.tipo}
+            ${s.nombre ? `<span style="color:var(--verde);font-weight:700">${s.nombre}</span> &nbsp;·&nbsp; CC ${s.cc} &nbsp;·&nbsp; ` : `CC ${s.cc} &nbsp;·&nbsp; `}${s.tipo}
           </div>
           <div class="sesion-meta" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:4px">
             <span>Factura: <strong>${s.factura}</strong></span>
