@@ -12885,7 +12885,7 @@ function buscarCodigoHimed(i, texto) {
   if (!sug) return;
   if (!q || q.length < 2) { sug.style.display = 'none'; return; }
 
-  const matches = CODIGOS_HIMED.filter(c => c.codigo.includes(q)).slice(0, 8);
+  const matches = CODIGOS_HIMED.filter(c => c.codigo.includes(q)).slice(0, 20);
   if (matches.length === 0) { sug.style.display = 'none'; return; }
 
   sug.innerHTML = matches.map(c => `
