@@ -5407,6 +5407,7 @@ const PEDIDO_OTROS = [
 
 // Estado de selección
 let pedidoAlfaItems   = {};
+let stockFiltroActivo = 'todos'; // persiste el filtro seleccionado entre recargas
 let pedidoOtrosItems  = {};
 
 function buildPedidos() {
@@ -11074,6 +11075,8 @@ function buildSesiones() {
 }
 
 function buildStock(filtroActivo) {
+  if (filtroActivo !== undefined) stockFiltroActivo = filtroActivo;
+  filtroActivo = stockFiltroActivo;
   if (!currentUser) return;
   const isEnf      = ['enf1','enf2'].includes(currentUser.id);
   const isRecep    = ['recep1','recep2'].includes(currentUser.id);
