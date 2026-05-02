@@ -11662,6 +11662,11 @@ function updateAmpollaCount() {
 // ACCIONES
 // ══════════════════════════════════════════════
 function registrarSesion() {
+  if (sesGuardando) return;
+  sesGuardando = true;
+  const btnSes = document.getElementById('btn-registrar-sesion');
+  if (btnSes) { btnSes.disabled = true; btnSes.textContent = 'Guardando…'; }
+
   let total = 0, done = 0;
   document.querySelectorAll('#modal-nueva-sesion .check-item').forEach(item => {
     let el = item, visible = true;
@@ -11677,6 +11682,8 @@ function registrarSesion() {
   if (done < total) {
     const blocker = document.getElementById('checklist-blocker');
     if (blocker) { blocker.style.display = 'block'; blocker.style.background = ''; blocker.style.border = ''; blocker.style.padding = ''; blocker.innerHTML = `🚫 Faltan ${total - done} ítem(s) del checklist`; }
+    sesGuardando = false;
+    if (btnSes) { btnSes.disabled = false; btnSes.textContent = 'Confirmar sesión'; }
     return;
   }
 
@@ -11718,10 +11725,11 @@ function registrarSesion() {
           </button>
         </div>`;
     }
+    sesGuardando = false;
+    const btnSes2 = document.getElementById('btn-registrar-sesion');
+    if (btnSes2) { btnSes2.disabled = false; btnSes2.textContent = 'Confirmar sesión'; }
     return;
   }
-
-  completarRegistroSesion();
 }
 
 function registrarFaltanteSala(ampollas) {
@@ -11866,6 +11874,9 @@ async function completarRegistroSesion() {  const adicionales = getAmollasAdicio
       ? `Insumos descontados: ${insumosDescontados.length}`
       : 'Sesión completada';
   mostrarToast('✅ Sesión registrada', toastMsg, 'verde');
+  sesGuardando = false;
+  const btnSes3 = document.getElementById('btn-registrar-sesion');
+  if (btnSes3) { btnSes3.disabled = false; btnSes3.textContent = 'Confirmar sesión'; }
   buildStock();
   const cc = document.getElementById('search-cc')?.value?.trim();
   if (cc) buscarEnSesiones(cc);
@@ -13368,7 +13379,8 @@ async function importarFacturaNuevoPaquete(input, tipo) {
   }
 }
 
-let npGuardando = false; // bandera para evitar doble clic
+let npGuardando  = false; // bandera para evitar doble clic en nuevo paquete
+let sesGuardando = false; // bandera para evitar doble clic en aplicar sesión
 
 async function confirmarNuevoPaquete() {
   if (npGuardando) return; // ya está guardando — ignorar clic adicional
