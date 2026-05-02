@@ -11150,12 +11150,12 @@ function buildStock(filtroActivo) {
   else if (f === 'bajo')    datos = datos.filter(p => p.stock < p.min && p.stock >= p.min * 0.5);
   else if (f === 'ok')      datos = datos.filter(p => p.stock >= p.min);
   // Filtros por tipo (enfermera)
-  else if (f === 'ampollas')     datos = datos.filter(p => p.tipo === 'medicamento' && p.categoria === 'enfermeria');
+  else if (f === 'ampollas')     datos = datos.filter(p => p.tipo === 'medicamento');
   else if (f === 'dispositivos') datos = datos.filter(p => p.tipo === 'dispositivo');
   else if (f === 'gases')        datos = datos.filter(p => p.tipo === 'gas');
   else if (f === 'suplementos')  datos = datos.filter(p => p.tipo === 'suplemento');
   // Filtros por proveedor (admin/gerencia)
-  else if (f === 'alfa')         datos = datos.filter(p => p.tipo === 'medicamento' && p.categoria === 'enfermeria' && p.proveedor !== 'Nutrabiotics');
+  else if (f === 'alfa')         datos = datos.filter(p => p.tipo === 'medicamento' && p.proveedor !== 'Nutrabiotics');
   else if (f === 'nutrabiotics') datos = datos.filter(p => p.tipo === 'suplemento');
   else if (f === 'tecnomedica')  datos = datos.filter(p => p.tipo === 'dispositivo');
   else if (f === 'solaris')      datos = datos.filter(p => p.proveedor === 'Solaris');
@@ -12080,7 +12080,7 @@ function renderRecepcionAdmin(pedidos) {
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--negro)">${ped.proveedor}</div>
             <div style="font-size:12px;color:var(--gris);margin-top:2px">Pedido: ${fechaLabel} · ${ped.items.length} productos · Por: ${ped.creadoPor}</div>
-            <div style="font-size:11px;color:var(--gris);margin-top:3px;opacity:.75">${ped.items.map(i => i.nombre).join(', ')}</div>
+            ${(()=>{ const ns=ped.items.map(i=>i.nombre||i.producto||i.name||'').filter(Boolean).join(', '); return ns ? `<div style="font-size:11px;color:var(--gris);margin-top:3px;opacity:.75">${ns}</div>` : ''; })()}
           </div>
           <span style="background:${ped.estado==='recibido_parcial'?'#FFF2CC':'#D6EAF8'};color:${ped.estado==='recibido_parcial'?'#C47A1A':'#1A5276'};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">
             ${ped.estado==='recibido_parcial'?'Recepción parcial':'Pendiente'}
