@@ -3589,8 +3589,8 @@ const STOCK_FALLBACK = [
   // ── SUPLEMENTOS NUTRABIOTICS — recepción (nombres exactos del catálogo 2026) ──
   { codigo:'NBADP01', nombre:'ADAPTESSENS 90 cápsulas',       lote:'NB-2601', vence:'2027-06', stock:5,  min:3, tipo:'suplemento', categoria:'recepcion' },
   { codigo:'NBALIPO1',nombre:'A-LipoR P.O 60 tabletas',       lote:'NB-2601', vence:'2027-08', stock:4,  min:3, tipo:'suplemento', categoria:'recepcion' },
-  { codigo:'IV-ALR',nombre:'A-LipoR I.V Caja 2 viales',     lote:'NB-2601', vence:'2027-08', stock:3,  min:2, tipo:'medicamento',  categoria:'enfermeria' },
-  { codigo:'IV-BLU', nombre:'BLUESSENS Caja 5 viales',        lote:'NB-2601', vence:'2027-09', stock:6,  min:3, tipo:'medicamento',  categoria:'enfermeria' },
+  { codigo:'IV-ALR',nombre:'A-LipoR I.V Caja 2 viales',     lote:'NB-2601', vence:'2027-08', stock:3,  min:2, tipo:'medicamento',  categoria:'enfermeria', proveedor:'Nutrabiotics' },
+  { codigo:'IV-BLU', nombre:'BLUESSENS Caja 5 viales',        lote:'NB-2601', vence:'2027-09', stock:6,  min:3, tipo:'medicamento',  categoria:'enfermeria', proveedor:'Nutrabiotics' },
   { codigo:'NBBUT01', nombre:'BUTIREX 60 cápsulas',            lote:'NB-2601', vence:'2027-07', stock:8,  min:3, tipo:'suplemento', categoria:'recepcion' },
   { codigo:'NBCAL01', nombre:'CALMESSENS 60 cápsulas',         lote:'NB-2601', vence:'2027-11', stock:3,  min:3, tipo:'suplemento', categoria:'recepcion' },
   { codigo:'NBCOL01', nombre:'COLESSENS 60 cápsulas',          lote:'NB-2601', vence:'2027-10', stock:5,  min:3, tipo:'suplemento', categoria:'recepcion' },
@@ -11155,7 +11155,7 @@ function buildStock(filtroActivo) {
   else if (f === 'gases')        datos = datos.filter(p => p.tipo === 'gas');
   else if (f === 'suplementos')  datos = datos.filter(p => p.tipo === 'suplemento');
   // Filtros por proveedor (admin/gerencia)
-  else if (f === 'alfa')         datos = datos.filter(p => p.tipo === 'medicamento' && p.categoria === 'enfermeria');
+  else if (f === 'alfa')         datos = datos.filter(p => p.tipo === 'medicamento' && p.categoria === 'enfermeria' && p.proveedor !== 'Nutrabiotics');
   else if (f === 'nutrabiotics') datos = datos.filter(p => p.tipo === 'suplemento');
   else if (f === 'tecnomedica')  datos = datos.filter(p => p.tipo === 'dispositivo');
   else if (f === 'solaris')      datos = datos.filter(p => p.proveedor === 'Solaris');
@@ -12080,6 +12080,7 @@ function renderRecepcionAdmin(pedidos) {
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--negro)">${ped.proveedor}</div>
             <div style="font-size:12px;color:var(--gris);margin-top:2px">Pedido: ${fechaLabel} · ${ped.items.length} productos · Por: ${ped.creadoPor}</div>
+            <div style="font-size:11px;color:var(--gris);margin-top:3px;opacity:.75">${ped.items.map(i => i.nombre).join(', ')}</div>
           </div>
           <span style="background:${ped.estado==='recibido_parcial'?'#FFF2CC':'#D6EAF8'};color:${ped.estado==='recibido_parcial'?'#C47A1A':'#1A5276'};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">
             ${ped.estado==='recibido_parcial'?'Recepción parcial':'Pendiente'}
