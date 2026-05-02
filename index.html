@@ -11866,25 +11866,28 @@ async function completarRegistroSesion() {  const adicionales = getAmollasAdicio
     mostrarToast('⚠️ Insumos sin stock', insumosFaltantes.join(', '), 'amber');
   }
 
-  await Promise.all([
-    guardarStockEnSheets(),
-    guardarAuditoriaEnSheets(),
-    guardarSesionesEnSheets(),
-  ]);
+  // ── Cerrar modal y actualizar UI de inmediato ──
   closeModal('modal-nueva-sesion');
   resetAdicionales();
+  sesGuardando = false;
+  const btnSes3 = document.getElementById('btn-registrar-sesion');
+  if (btnSes3) { btnSes3.disabled = false; btnSes3.textContent = 'Confirmar sesión'; }
   const toastMsg = todasAmpollas.length > 0
     ? `Ampollas: ${selectedAmpollas.join(', ')}${adicionalesStr}`
     : insumosDescontados.length > 0
       ? `Insumos descontados: ${insumosDescontados.length}`
       : 'Sesión completada';
   mostrarToast('✅ Sesión registrada', toastMsg, 'verde');
-  sesGuardando = false;
-  const btnSes3 = document.getElementById('btn-registrar-sesion');
-  if (btnSes3) { btnSes3.disabled = false; btnSes3.textContent = 'Confirmar sesión'; }
   buildStock();
   const cc = document.getElementById('search-cc')?.value?.trim();
   if (cc) buscarEnSesiones(cc);
+
+  // ── Guardar en Sheets en background (no bloquea UI) ──
+  Promise.all([
+    guardarStockEnSheets(),
+    guardarAuditoriaEnSheets(),
+    guardarSesionesEnSheets(),
+  ]).catch(e => console.warn('Error guardando sesión en Sheets:', e));
 }
 
 function registrarNovedad() {
