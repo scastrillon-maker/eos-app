@@ -11074,9 +11074,9 @@ function buildStock(filtroActivo) {
   // ── Filtrar datos ──
   let datos = STOCK_DATA;
 
-  // Primero filtrar por lo que puede ver cada rol
-  if (isEnf)   datos = STOCK_DATA.filter(p => p.categoria === 'enfermeria');
-  if (isRecep) datos = STOCK_DATA.filter(p => p.categoria === 'recepcion');
+  // Primero filtrar por lo que puede ver cada rol (basado en TIPO, más robusto que categoria)
+  if (isEnf)   datos = STOCK_DATA.filter(p => p.tipo === 'medicamento' || p.tipo === 'dispositivo' || p.tipo === 'gas');
+  if (isRecep) datos = STOCK_DATA.filter(p => p.tipo === 'suplemento');
 
   // Luego aplicar filtro seleccionado
   const f = filtroActivo || 'todos';
@@ -12535,7 +12535,7 @@ async function registrarEntrada() {
         stock:     0,
         min:       minRef,
         tipo:      getTipoProducto(item.codigo, proveedor),
-        categoria: item.categoria === 'suplemento' ? 'recepcion' : 'enfermeria',
+        categoria: getTipoProducto(item.codigo, proveedor) === 'suplemento' ? 'recepcion' : 'enfermeria',
         iva:       item.tieneIVA ? 19 : 0,
       };
       STOCK_DATA.push(prod);
