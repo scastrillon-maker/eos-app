@@ -5763,7 +5763,7 @@ async function cargarDesdeSheets() {
     gasRead('Sesiones'),
   ]);
   if (auditRows)    rowsToAudit(auditRows);
-  if (pedidosRows)  rowsToPedidos(pedidosRows);
+  if (pedidosRows)  { rowsToPedidos(pedidosRows); if (currentPage === 'pedidos') buildPedidos(); }
   if (sesionesRows) rowsToSesiones(sesionesRows);
 
   buildAlerts(); // refrescar alertas con auditoría completa
@@ -5778,7 +5778,7 @@ async function cargarDesdeSheets() {
       ]);
       if (sR)  rowsToStock(sR);
       if (aR)  rowsToAudit(aR);
-      if (pR)  rowsToPedidos(pR);
+      if (pR)  { rowsToPedidos(pR); if (currentPage === 'pedidos') buildPedidos(); }
       if (seR) rowsToSesiones(seR);
       buildStats(); buildAlerts(); buildStock();
       if (currentPage === 'suplementos') buildSuplementos();
