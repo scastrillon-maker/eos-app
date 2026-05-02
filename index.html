@@ -5423,6 +5423,12 @@ function buildPedidos() {
 
   // Generar PEDIDO_ALFA desde CATALOGO_MUESTRA (todos los productos HEEL)
   // más los insumos IV de Farmacia Alfa (RYAN = Corbacid/Vit C)
+
+  // Usar predicción inteligente como fuente de cantidad sugerida
+  const prediccionHeel = calcularPrediccion();
+  const mapaPrediccion = {};
+  prediccionHeel.forEach(p => { mapaPrediccion[p.codigo] = p.sugeridoPrediccion; });
+
   PEDIDO_ALFA = CATALOGO_MUESTRA
     .filter(p => p.linea === 'HEEL')
     .map(p => {
@@ -5430,8 +5436,10 @@ function buildPedidos() {
       const stockInfo = PEDIDO_ALFA_STOCK[p.codigo] || {};
       const stock     = enStock?.stock ?? stockInfo.stock ?? 0;
       const min       = enStock?.min   ?? stockInfo.min   ?? 5;
-      // Sugerir lo necesario para llegar al doble del mínimo si está por debajo
-      const sugerido  = stock < min ? Math.max(min * 2 - stock, min) : 0;
+      // Usar predicción si existe; si no hay historial y está bajo mínimo → sugerir 1
+      const sugerido = (mapaPrediccion[p.codigo] !== undefined && mapaPrediccion[p.codigo] > 0)
+        ? mapaPrediccion[p.codigo]
+        : stock < min ? 1 : 0;
       return {
         codigo:     p.codigo,
         nombre:     p.nombre,
@@ -11086,7 +11094,7 @@ function buildStock(filtroActivo) {
         { key:'critico',     label:'🔴 Crítico' },
         { key:'bajo',        label:'🟡 Stock bajo' },
         { key:'ok',          label:'✅ OK' },
-        { key:'ampollas',    label:'💉 Ampollas' },
+        { key:'ampollas',    label:'💉 Medicamentos' },
         { key:'dispositivos',label:'🩺 Dispositivos' },
         { key:'gases',       label:'🫧 Gases medicinales' },
       ];
