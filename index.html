@@ -11525,6 +11525,10 @@ function openModal(id) {
     document.getElementById('checklist-blocker').style.display = 'none';
     selectedAmpollas = [];
     resetAdicionales();
+    // Siempre resetear guardia al abrir — por si quedó bloqueada de un intento anterior
+    sesGuardando = false;
+    const btnSesOpen = document.getElementById('btn-registrar-sesion');
+    if (btnSesOpen) { btnSesOpen.disabled = false; btnSesOpen.textContent = 'Confirmar sesión'; }
   }
 }
 function closeModal(id) {
