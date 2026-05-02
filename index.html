@@ -6678,12 +6678,11 @@ function generarPDFPedido(proveedorKey) {
     estado:  'ok'
   });
 
-  _generarPDF(proveedorKey);
-
-  // Actualizar toda la vista de pedidos inmediatamente
+  // Actualizar vista ANTES de abrir el PDF (evita pérdida de foco)
   buildPedidos();
   guardarPedidosEnSheets();
   mostrarToast('✅ Orden de compra generada', `${proveedor} · ${itemsPedido.length} productos · $${total.toLocaleString('es-CO')}`, 'verde');
+  _generarPDF(proveedorKey);
 }
 
 function sanitizePDF(str) {
