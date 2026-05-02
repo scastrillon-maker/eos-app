@@ -5807,7 +5807,9 @@ async function guardarAuditoriaEnSheets() {
 // ── Guardar pedidos en Sheets ──
 async function guardarPedidosEnSheets() {
   if (!gasConectado) return;
+  sheetsSaving = true;
   try { await gasWrite('Pedidos', pedidosToRows()); } catch(e) { console.warn('Error guardando pedidos:', e); }
+  finally { sheetsSaving = false; }
 }
 
 // ── Serialización de SESIONES_DATA ──
@@ -6623,8 +6625,9 @@ function generarPDFPedido(proveedorKey) {
   }
 
   // Grabar pedido en PEDIDOS_ENVIADOS
-  const fechaHoy = new Date().toISOString().slice(0,10);
-  const hora     = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  const _hoy = new Date();
+  const fechaHoy = `${_hoy.getFullYear()}-${String(_hoy.getMonth()+1).padStart(2,'0')}-${String(_hoy.getDate()).padStart(2,'0')}`;
+  const hora     = _hoy.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
 
   // Si ya hay un pedido pendiente del mismo proveedor, actualizarlo
   const existente = PEDIDOS_ENVIADOS.find(p => p.proveedor === proveedor && p.estado === 'pendiente');
