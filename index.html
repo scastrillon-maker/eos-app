@@ -5848,7 +5848,12 @@ function rowsToSesiones(rows) {
 
 async function guardarSesionesEnSheets() {
   if (!gasConectado) return;
-  await gasWrite('Sesiones', sessionesToRows());
+  sheetsSaving = true;
+  try {
+    await gasWrite('Sesiones', sessionesToRows());
+  } finally {
+    sheetsSaving = false;
+  }
 }
 
 // ── Parsear código HIMED para extraer sesiones y médico ──
