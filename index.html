@@ -6680,8 +6680,8 @@ function generarPDFPedido(proveedorKey) {
 
   _generarPDF(proveedorKey);
 
-  // Actualizar panel de pendientes inmediatamente
-  renderPedidosPendientes();
+  // Actualizar toda la vista de pedidos inmediatamente
+  buildPedidos();
   guardarPedidosEnSheets();
   mostrarToast('✅ Orden de compra generada', `${proveedor} · ${itemsPedido.length} productos · $${total.toLocaleString('es-CO')}`, 'verde');
 }
