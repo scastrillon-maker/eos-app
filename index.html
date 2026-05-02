@@ -11744,6 +11744,14 @@ function registrarSesion() {
     if (btnSes2) { btnSes2.disabled = false; btnSes2.textContent = 'Confirmar sesión'; }
     return;
   }
+
+  completarRegistroSesion().catch(e => {
+    console.error('❌ Error en completarRegistroSesion:', e);
+    sesGuardando = false;
+    const btn = document.getElementById('btn-registrar-sesion');
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar sesión'; }
+    mostrarToast('❌ Error al guardar', e.message || 'Error inesperado', 'rojo');
+  });
 }
 
 function registrarFaltanteSala(ampollas) {
@@ -11776,7 +11784,13 @@ function registrarFaltanteSala(ampollas) {
 function continuarSinRegistrar() {
   const blocker = document.getElementById('checklist-blocker');
   if (blocker) { blocker.style.display='none'; blocker.innerHTML=''; }
-  completarRegistroSesion();
+  completarRegistroSesion().catch(e => {
+    console.error('❌ Error en completarRegistroSesion:', e);
+    sesGuardando = false;
+    const btn = document.getElementById('btn-registrar-sesion');
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar sesión'; }
+    mostrarToast('❌ Error al guardar', e.message || 'Error inesperado', 'rojo');
+  });
 }
 
 async function completarRegistroSesion() {  const adicionales = getAmollasAdicionales();
