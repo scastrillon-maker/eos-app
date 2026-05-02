@@ -5842,14 +5842,15 @@ async function cargarDesdeSheets() {
   if (!window._syncInterval) {
     window._syncInterval = setInterval(async () => {
       if (sheetsSaving) return;
-      const [sR, aR, pR, seR] = await Promise.all([
+      const [sR, aR, pR, seR, cR] = await Promise.all([
         gasRead('Stock'), gasRead('Auditoria'),
-        gasRead('Pedidos'), gasRead('Sesiones'),
+        gasRead('Pedidos'), gasRead('Sesiones'), gasRead('Catalogo'),
       ]);
       if (sR)  rowsToStock(sR);
       if (aR)  rowsToAudit(aR);
       if (pR)  { rowsToPedidos(pR); if (currentPage === 'pedidos') buildPedidos(); }
       if (seR) rowsToSesiones(seR);
+      if (cR && cR.length > 1) { rowsToCatalogo(cR); if (currentPage === 'catalogo') buildCatalogo(); }
       buildStats(); buildAlerts(); buildStock();
       if (currentPage === 'suplementos') buildSuplementos();
     }, 120000);
@@ -11573,6 +11574,7 @@ function navigateTo(page) {
 
   // Inicializar módulos al navegar
   if (page === 'dashboard')    setTimeout(() => { buildStats(); buildAlerts(); }, 50);
+  if (page === 'catalogo')     setTimeout(() => buildCatalogo(), 2500); // reintento tras carga Sheets
   if (page === 'ocupacion')    setTimeout(() => updateHeatmap('abril', null), 50);
   if (page === 'auditoria')    setTimeout(() => buildAuditoria(), 50);
   if (page === 'proximamente') setTimeout(() => buildProximamente(), 50);
