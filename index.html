@@ -5746,6 +5746,28 @@ function rowsToCatalogo(rows) {
   });
 }
 
+async function guardarComprasEnSheets(nuevasCompras) {
+  if (!gasConectado || !nuevasCompras || nuevasCompras.length === 0) return;
+  try {
+    // Leer compras existentes y agregar las nuevas
+    const existing = await gasRead('Compras');
+    let rows;
+    const header = ['fecha','proveedor','factura','codigo','nombre','lote','cantidadRecibida','precioUnitario','valorTotal'];
+    if (existing && existing.length > 1) {
+      rows = [...existing, ...nuevasCompras.map(c => [
+        c.fecha, c.proveedor, c.factura, c.codigo, c.nombre,
+        c.lote, c.cantidadRecibida, c.precioUnitario, c.valorTotal
+      ])];
+    } else {
+      rows = [header, ...nuevasCompras.map(c => [
+        c.fecha, c.proveedor, c.factura, c.codigo, c.nombre,
+        c.lote, c.cantidadRecibida, c.precioUnitario, c.valorTotal
+      ])];
+    }
+    await gasWrite('Compras', rows);
+  } catch(e) { console.warn('Error guardando compras:', e); }
+}
+
 async function guardarCatalogoEnSheets() {
   if (!gasConectado) return;
   sheetsSaving = true;
@@ -12196,7 +12218,7 @@ function seleccionarPedidoRecepcion(pedidoId) {
                   Llegó
                 </label>
               </div>
-              <div id="recep-detalle-${idx}" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div id="recep-detalle-${idx}" style="display:none;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
                 <div class="form-field" style="margin:0">
                   <label style="font-size:11px">N° Lote *</label>
                   <input type="text" id="recep-lote-${idx}" placeholder="Lote del empaque"/>
@@ -12208,6 +12230,10 @@ function seleccionarPedidoRecepcion(pedidoId) {
                 <div class="form-field" style="margin:0">
                   <label style="font-size:11px">Cant. recibida *</label>
                   <input type="number" id="recep-cant-${idx}" min="1" value="${item.cantidad}" placeholder="${item.cantidad}"/>
+                </div>
+                <div class="form-field" style="margin:0">
+                  <label style="font-size:11px">Precio unitario (OC: $${(item.precio||0).toLocaleString('es-CO')})</label>
+                  <input type="number" id="recep-precio-${idx}" min="0" value="${item.precio||0}" placeholder="${item.precio||0}"/>
                 </div>
               </div>
             </div>`).join('')}
@@ -12256,18 +12282,31 @@ function confirmarRecepcionAdmin() {
   let faltantes = [];
 
   let loteError = false;
+  const nuevasCompras = []; // registro para pestaña Compras
+  const _hoyRec = new Date();
+  const fechaRec = `${_hoyRec.getFullYear()}-${String(_hoyRec.getMonth()+1).padStart(2,'0')}-${String(_hoyRec.getDate()).padStart(2,'0')}`;
+
   ped.items.forEach((item, idx) => {
     if (loteError) return;
     const llego = document.getElementById('recep-llego-' + idx)?.checked;
     if (llego) {
-      const lote  = document.getElementById('recep-lote-' + idx)?.value?.trim();
-      const vence = document.getElementById('recep-vence-' + idx)?.value;
-      const cant  = parseInt(document.getElementById('recep-cant-' + idx)?.value) || item.cantidad;
+      const lote        = document.getElementById('recep-lote-' + idx)?.value?.trim();
+      const vence       = document.getElementById('recep-vence-' + idx)?.value;
+      const cant        = parseInt(document.getElementById('recep-cant-' + idx)?.value) || item.cantidad;
+      const precioUnit  = parseFloat(document.getElementById('recep-precio-' + idx)?.value) || item.precio || 0;
       if (!lote) {
         alert('Ingresa el número de lote de ' + item.nombre);
         loteError = true;
         return;
       }
+
+      // Registrar en Compras
+      nuevasCompras.push({
+        fecha: fechaRec, proveedor: ped.proveedor, factura,
+        codigo: item.codigo, nombre: item.nombre, lote,
+        cantidadRecibida: cant, precioUnitario: precioUnit,
+        valorTotal: cant * precioUnit
+      });
 
       // Actualizar stock — buscar por código + lote
       let prod = STOCK_DATA.find(p => p.codigo === item.codigo && p.lote === lote);
@@ -12314,6 +12353,7 @@ function confirmarRecepcionAdmin() {
   guardarStockEnSheets();
   guardarAuditoriaEnSheets();
   guardarPedidosEnSheets();
+  guardarComprasEnSheets(nuevasCompras);
   closeModal('modal-recepcion-admin');
   pedidoRecepcionActivo = null;
 
