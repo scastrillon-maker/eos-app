@@ -5466,16 +5466,13 @@ function buildPedidos() {
     });
   }
 
-  // Inicializar selecciones con sugeridos calculados
-  // Siempre actualizar cantidad sugerida; conservar si el usuario ya cambió la cantidad manualmente
+  // Inicializar selecciones — solo si el producto no existe aún en pedidoAlfaItems
+  // Si ya existe, respetar lo que el usuario eligió (incluir/excluir y cantidad)
   PEDIDO_ALFA.forEach(p => {
     if (!(p.codigo in pedidoAlfaItems)) {
       pedidoAlfaItems[p.codigo] = { incluir: p.sugerido > 0, cantidad: p.sugerido };
-    } else {
-      // Actualizar sugerido pero conservar si el usuario lo modificó manualmente
-      pedidoAlfaItems[p.codigo].cantidad = p.sugerido;
-      pedidoAlfaItems[p.codigo].incluir  = p.sugerido > 0;
     }
+    // Si ya existe → no tocar nada, respetar decisión del usuario
   });
   PEDIDO_OTROS.forEach(p => {
     if (!(p.codigo in pedidoOtrosItems)) {
