@@ -11529,6 +11529,11 @@ function openModal(id) {
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
+  if (id === 'modal-nueva-sesion') {
+    sesGuardando = false;
+    const btnSes = document.getElementById('btn-registrar-sesion');
+    if (btnSes) { btnSes.disabled = false; btnSes.textContent = 'Confirmar sesión'; }
+  }
 }
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
