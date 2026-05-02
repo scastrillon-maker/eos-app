@@ -5708,6 +5708,51 @@ function pedidosToRows() {
   return rows;
 }
 
+function catalogoToRows() {
+  const header = ['codigo','nombre','linea','categoria','capa','abc','pventa','pcosto','pcostoEOS','invima','iva',
+    'principioActivo','formaFarmaceutica','concentracion','presentacion','unidadMedida','laboratorio',
+    'marca','serie','presentacionDM','clasificacionRiesgo','vidaUtil','fabricante'];
+  const rows = [header, ...CATALOGO_MUESTRA.map(p => [
+    p.codigo, p.nombre, p.linea||'', p.categoria||'', p.capa||'', p.abc||'',
+    p.pventa||0, p.pcosto||0, p.pcostoEOS||0, p.invima||'', p.iva||0,
+    p.principioActivo||'', p.formaFarmaceutica||'', p.concentracion||'',
+    p.presentacion||'', p.unidadMedida||'', p.laboratorio||'',
+    p.marca||'', p.serie||'', p.presentacionDM||'', p.clasificacionRiesgo||'',
+    p.vidaUtil||'', p.fabricante||''
+  ])];
+  return rows;
+}
+
+function rowsToCatalogo(rows) {
+  if (!rows || rows.length < 2) return;
+  const [header, ...data] = rows;
+  data.forEach(r => {
+    if (!r[0]) return;
+    const codigo = String(r[0]);
+    const idx = CATALOGO_MUESTRA.findIndex(p => p.codigo === codigo);
+    const obj = {
+      codigo, nombre: String(r[1]||''), linea: String(r[2]||''), categoria: String(r[3]||''),
+      capa: String(r[4]||'1'), abc: String(r[5]||'A'),
+      pventa: parseFloat(r[6])||0, pcosto: parseFloat(r[7])||0, pcostoEOS: parseFloat(r[8])||0,
+      invima: String(r[9]||''), iva: parseInt(r[10])||0,
+      principioActivo: String(r[11]||''), formaFarmaceutica: String(r[12]||''),
+      concentracion: String(r[13]||''), presentacion: String(r[14]||''),
+      unidadMedida: String(r[15]||''), laboratorio: String(r[16]||''),
+      marca: String(r[17]||''), serie: String(r[18]||''), presentacionDM: String(r[19]||''),
+      clasificacionRiesgo: String(r[20]||''), vidaUtil: String(r[21]||''), fabricante: String(r[22]||'')
+    };
+    if (idx >= 0) CATALOGO_MUESTRA[idx] = { ...CATALOGO_MUESTRA[idx], ...obj };
+    else CATALOGO_MUESTRA.push(obj);
+  });
+}
+
+async function guardarCatalogoEnSheets() {
+  if (!gasConectado) return;
+  sheetsSaving = true;
+  try { await gasWrite('Catalogo', catalogoToRows()); } catch(e) { console.warn('Error guardando catálogo:', e); }
+  finally { sheetsSaving = false; }
+}
+
 function rowsToPedidos(rows) {
   if (!rows || rows.length < 2) return;
   const [header, ...data] = rows;
@@ -5779,14 +5824,17 @@ async function cargarDesdeSheets() {
   mostrarToast('✅ Stock listo', msg, 'verde');
 
   // ── FASE 2: Resto en background ───────────────────────────
-  const [auditRows, pedidosRows, sesionesRows] = await Promise.all([
+  const [auditRows, pedidosRows, sesionesRows, catalogoRows] = await Promise.all([
     gasRead('Auditoria'),
     gasRead('Pedidos'),
     gasRead('Sesiones'),
+    gasRead('Catalogo'),
   ]);
   if (auditRows)    rowsToAudit(auditRows);
   if (pedidosRows)  { rowsToPedidos(pedidosRows); if (currentPage === 'pedidos') buildPedidos(); }
   if (sesionesRows) rowsToSesiones(sesionesRows);
+  if (catalogoRows && catalogoRows.length > 1) rowsToCatalogo(catalogoRows);
+  else guardarCatalogoEnSheets(); // primera vez — poblar Sheets con datos del código
 
   buildAlerts(); // refrescar alertas con auditoría completa
 
@@ -11485,6 +11533,7 @@ function guardarEdicionProducto(codigo) {
 
   closeModal('modal-nuevo-producto');
   buildCatalogo();
+  guardarCatalogoEnSheets();
   mostrarToast('✅ Producto actualizado', `"${CATALOGO_MUESTRA[idx].nombre}" actualizado correctamente.`, 'verde');
 }
 
