@@ -5735,46 +5735,48 @@ async function reconectarSheets() {
 
 async function cargarDesdeSheets() {
   if (sheetsSaving) { console.log('Skipping reload — save in progress'); return; }
-  console.log('Cargando datos desde Google Sheets...');
-  mostrarToast('☁️ Cargando datos...', 'Conectando con Google Sheets', 'azul');
 
-  const [stockRows, auditRows, pedidosRows, sesionesRows] = await Promise.all([
-    gasRead('Stock'),
-    gasRead('Auditoria'),
-    gasRead('Pedidos'),
-    gasRead('Sesiones'),
-  ]);
-
-  // REGLA: Sheets es la única fuente de verdad para stock.
-  // rowsToStock() solo reemplaza STOCK_DATA si Sheets trae filas válidas.
-  if (stockRows)    rowsToStock(stockRows);
-  if (auditRows)    rowsToAudit(auditRows);
-  if (pedidosRows)  rowsToPedidos(pedidosRows);
-  if (sesionesRows) rowsToSesiones(sesionesRows);
-  console.log('AUDIT_LOG tras cargar Sheets:', AUDIT_LOG.length, 'entradas');
-  console.log('Sesiones CESF-3084:', AUDIT_LOG.filter(e => e.detalle && e.detalle.includes('CESF-3084')).map(e => e.fecha + ' ' + e.accion));
+  // ── FASE 1: Stock primero — mostrar UI rápido ──────────────
+  const stockRows = await gasRead('Stock');
+  if (stockRows) rowsToStock(stockRows);
 
   gasConectado = true;
   actualizarIndicadorSheets(true);
-  const msg = sheetsStockCargado
-    ? `${STOCK_DATA.length} productos cargados desde Sheets`
-    : 'Sheets Stock vacío — esperando primera entrada';
-  console.log('Datos cargados desde Sheets:', STOCK_DATA.length, 'productos en stock');
-  mostrarToast('✅ Datos sincronizados', msg, 'verde');
-
-  // Refrescar vistas — buildStock siempre para que el stock nunca quede vacío
   buildStats();
   buildAlerts();
   buildStock();
   if (currentPage === 'suplementos') buildSuplementos();
 
+  const msg = sheetsStockCargado
+    ? `${STOCK_DATA.length} productos en stock`
+    : 'Stock vacío — usar Carga inicial';
+  mostrarToast('✅ Stock listo', msg, 'verde');
+
+  // ── FASE 2: Resto en background ───────────────────────────
+  const [auditRows, pedidosRows, sesionesRows] = await Promise.all([
+    gasRead('Auditoria'),
+    gasRead('Pedidos'),
+    gasRead('Sesiones'),
+  ]);
+  if (auditRows)    rowsToAudit(auditRows);
+  if (pedidosRows)  rowsToPedidos(pedidosRows);
+  if (sesionesRows) rowsToSesiones(sesionesRows);
+
+  buildAlerts(); // refrescar alertas con auditoría completa
+
   // Sincronización automática cada 2 minutos
   if (!window._syncInterval) {
     window._syncInterval = setInterval(async () => {
-      await cargarDesdeSheets();
-      buildStats();
-      buildAlerts();
-      buildStock();
+      if (sheetsSaving) return;
+      const [sR, aR, pR, seR] = await Promise.all([
+        gasRead('Stock'), gasRead('Auditoria'),
+        gasRead('Pedidos'), gasRead('Sesiones'),
+      ]);
+      if (sR)  rowsToStock(sR);
+      if (aR)  rowsToAudit(aR);
+      if (pR)  rowsToPedidos(pR);
+      if (seR) rowsToSesiones(seR);
+      buildStats(); buildAlerts(); buildStock();
       if (currentPage === 'suplementos') buildSuplementos();
     }, 120000);
   }
