@@ -5478,20 +5478,28 @@ function buildPedidos() {
 function renderPedidosPendientes() {
   const cont = document.getElementById('pedidos-pendientes-panel');
   if (!cont) return;
-  const pendientes = PEDIDOS_ENVIADOS.filter(p => p.estado === 'pendiente' || p.estado === 'recibido_parcial');
+  // Ordenar: más viejo arriba, más reciente abajo
+  const pendientes = PEDIDOS_ENVIADOS
+    .filter(p => p.estado === 'pendiente' || p.estado === 'recibido_parcial')
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   if (pendientes.length === 0) { cont.innerHTML = ''; return; }
   cont.innerHTML = `
     <div style="background:var(--azul-l);border:1.5px solid var(--azul);border-radius:12px;padding:16px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;color:var(--azul);margin-bottom:12px">📦 Pedidos enviados — pendientes de recepción</div>
       ${pendientes.map(ped => {
         const total = ped.items.reduce((s,i) => s + i.cantidad * i.precio, 0);
+        // Fecha con zona horaria local (evita el desfase UTC)
+        const [y,m,d] = ped.fecha.split('-');
+        const fechaLocal = new Date(+y, +m-1, +d).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'});
+        const nombres = ped.items.map(i => i.nombre || i.producto || '').filter(Boolean).join(', ');
         return `
         <div style="background:white;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <div>
+          <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600">${ped.proveedor}</div>
-            <div style="font-size:11px;color:var(--gris)">${new Date(ped.fecha).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'})} · ${ped.items.length} productos · ${ped.creadoPor}</div>
+            <div style="font-size:11px;color:var(--gris);margin-top:1px">${fechaLocal} · ${ped.items.length} productos · ${ped.creadoPor}</div>
+            ${nombres ? `<div style="font-size:10px;color:var(--gris);margin-top:3px;opacity:.75">${nombres}</div>` : ''}
           </div>
-          <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
             <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
               background:${ped.estado==='recibido_parcial'?'var(--amber-l)':'var(--azul-l)'};
               color:${ped.estado==='recibido_parcial'?'#7a4a00':'var(--azul)'}">
@@ -12664,9 +12672,15 @@ function mostrarToast(titulo, mensaje, tipo = 'verde') {
     max-width:90vw;text-align:center;
     animation:slideUp .3s ease;
   `;
+  const cerrarToast = () => { toast.style.opacity='0'; toast.style.transition='opacity .3s'; setTimeout(()=>toast.remove(),300); };
   toast.innerHTML = `
-    <div style="font-size:15px;font-weight:700;margin-bottom:4px">${titulo}</div>
-    <div style="font-size:12px;opacity:.9">${mensaje}</div>
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1;text-align:center">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">${titulo}</div>
+        <div style="font-size:12px;opacity:.9">${mensaje}</div>
+      </div>
+      <button onclick="this.closest('#toast-global').remove()" style="background:none;border:none;color:white;font-size:18px;line-height:1;cursor:pointer;opacity:.7;padding:0;margin-top:-2px">×</button>
+    </div>
   `;
 
   // Agregar animación si no existe
