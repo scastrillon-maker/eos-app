@@ -10535,6 +10535,18 @@ function buildStats() {
       icon: alertasStock === 0 ? '#D9EAD3' : '#FCE4D6',
       iconColor: alertasStock === 0 ? '#1F6B3E' : '#A32D2D'
     };
+    // Pedidos pendientes de recibir (proveedores de enfermería)
+    const provEnf = ['Farmacia Alfa','Tecnomedica','Vidox','Bioxigen'];
+    const pedidosPendEnf = PEDIDOS_ENVIADOS.filter(p =>
+      provEnf.includes(p.proveedor) && (p.estado === 'pendiente' || p.estado === 'recibido_parcial')
+    ).length;
+    stats[3] = {
+      label: 'Pedidos en camino',
+      value: String(pedidosPendEnf),
+      sub: pedidosPendEnf === 0 ? 'Sin pedidos pendientes ✅' : 'Pendientes de recepción',
+      icon: pedidosPendEnf === 0 ? '#D9EAD3' : '#D6EAF8',
+      iconColor: pedidosPendEnf === 0 ? '#1F6B3E' : '#1A5276'
+    };
   }
 
   // Para dasist: stats dinámicos desde protocolos y sugerencias
@@ -12220,12 +12232,15 @@ function confirmarRecepcionAdmin() {
   });
   if (loteError) return;
 
-  // Actualizar estado del pedido
+  // Actualizar estado del pedido — re-buscar por ID para evitar objeto fantasma si el sync corrió
+  const pedEnArray = PEDIDOS_ENVIADOS.find(p => p.id === ped.id);
+  const pedTarget = pedEnArray || ped; // fallback al objeto original si no está en el array
+  if (!pedEnArray) PEDIDOS_ENVIADOS.push(ped); // re-insertar si fue purgado por el sync
   if (faltantes.length === 0) {
-    ped.estado = 'recibido_completo';
+    pedTarget.estado = 'recibido_completo';
   } else if (recibidos > 0) {
-    ped.estado = 'recibido_parcial';
-    ped.faltantes = faltantes;
+    pedTarget.estado = 'recibido_parcial';
+    pedTarget.faltantes = faltantes;
   }
 
   buildStock();
