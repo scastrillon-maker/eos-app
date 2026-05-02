@@ -1225,11 +1225,6 @@ body { font-family: var(--font-body); background: var(--gris-l); color: var(--ne
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
               Importar cotización ✨
             </button>
-            <button id="btn-carga-inicial" class="btn-secondary" onclick="cargarStockInicial()"
-              style="background:var(--teal);color:white;border:none;display:none">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-              Carga inicial stock
-            </button>
             <button class="btn-primary" onclick="openModal('modal-nuevo-producto')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
               Nuevo producto
@@ -5740,6 +5735,9 @@ async function cargarDesdeSheets() {
   const stockRows = await gasRead('Stock');
   if (stockRows) rowsToStock(stockRows);
 
+  // ── Auto-completar catálogo: agregar productos del catálogo maestro que no estén en STOCK_DATA ──
+  asegurarCatalogoCompleto();
+
   gasConectado = true;
   actualizarIndicadorSheets(true);
   buildStats();
@@ -5747,9 +5745,7 @@ async function cargarDesdeSheets() {
   buildStock();
   if (currentPage === 'suplementos') buildSuplementos();
 
-  const msg = sheetsStockCargado
-    ? `${STOCK_DATA.length} productos en stock`
-    : 'Stock vacío — usar Carga inicial';
+  const msg = `${STOCK_DATA.length} productos en stock`;
   mostrarToast('✅ Stock listo', msg, 'verde');
 
   // ── FASE 2: Resto en background ───────────────────────────
@@ -11173,95 +11169,78 @@ function filtrarCatalogo(filtro, btn) {
 // ══════════════════════════════════════════════
 // CARGA INICIAL DE STOCK — solo admin, solo una vez
 // ══════════════════════════════════════════════
-async function cargarStockInicial() {
-  if (!confirm('¿Sincronizar catálogo con Sheets? Solo agrega productos faltantes, no borra el stock existente.')) return;
+// ── Catálogo maestro de productos (definidos en código, no en Sheets) ──
+function getCatalogoMaestro() {
+  // Productos del fallback (HEEL, IV, salinas, Nutrabiotics)
+  const fromFallback = STOCK_FALLBACK.map(p => ({
+    codigo:    p.codigo,
+    nombre:    p.nombre,
+    lote:      '',
+    vence:     '',
+    stock:     0,
+    min:       p.min || 5,
+    tipo:      p.tipo || 'medicamento',
+    categoria: p.categoria || 'enfermeria',
+  }));
 
-  const btn = document.getElementById('btn-carga-inicial');
-  if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
+  // Dispositivos Tecnomedica / Vidox / Gas
+  const dispositivos = [
+    ['CT-24','Catéter 24G',100,'dispositivo'],
+    ['CT-22','Catéter 22G',50,'dispositivo'],
+    ['MC-MAC','Macrogotero 10G',100,'dispositivo'],
+    ['JR-20','Jeringa 20ml',50,'dispositivo'],
+    ['JR-05','Jeringa 5ml',50,'dispositivo'],
+    ['GS-10','Gasa estéril 10x10x2un',50,'dispositivo'],
+    ['SN-NEL','Sonda Nelaton 18Fr',10,'dispositivo'],
+    ['RC-15','Recolector Guardian 1.5L',5,'dispositivo'],
+    ['RC-29','Recolector Guardian 2.9L',5,'dispositivo'],
+    ['AG-25','Aguja 25G / Venocat',50,'dispositivo'],
+    ['EP-01','Tegaderm / Esparadrapo',50,'dispositivo'],
+    ['SN-VAG','Sonda vaginal',10,'dispositivo'],
+    ['LN-01','Lanceta x50 uds',2,'dispositivo'],
+    ['TG-01','Tira glucómetro x50und',2,'dispositivo'],
+    ['BT-01','Bata paciente SMS desechable',50,'dispositivo'],
+    ['TL-ALC','Toallita alcoholada isop.70%',5,'dispositivo'],
+    ['GN-NIL-S','Guante nitrilo azul S',5,'dispositivo'],
+    ['GN-NIL-L','Guante nitrilo azul L',2,'dispositivo'],
+    ['GN-EST','Guante estéril 6.5',5,'dispositivo'],
+    ['TL-CAM','Tela camilla azul 50x100m',2,'dispositivo'],
+    ['AL-01','Algodón motas x500gr',2,'dispositivo'],
+    ['CR-AD','Cura redonda adulto x100und',2,'dispositivo'],
+    ['BL-PL','Bolsa plástica grande',5,'dispositivo'],
+    ['TP-AZ','Tapaboca azul desechable',3,'dispositivo'],
+    ['OX-MED','Oxígeno medicinal',1,'gas'],
+    ['VX-KIT','Kit de ozono Vidox',6,'dispositivo'],
+    ['VX-REC','Manguera rectal Vidox',3,'dispositivo'],
+    ['VX-VAL','Válvula antirretorno Vidox',4,'dispositivo'],
+    ['VX-OZS','Kit ozonizador de sueros Vidox',2,'dispositivo'],
+    ['VX-VAG','Kit insuflación vaginal Vidox',3,'dispositivo'],
+  ].map(([codigo, nombre, min, tipo]) => ({
+    codigo, nombre, lote: '', vence: '', stock: 0, min, tipo, categoria: 'enfermeria'
+  }));
 
-  // Leer lo que ya hay en Sheets
-  const rowsActuales = await gasRead('Stock');
-  const codigosEnSheets = new Set();
-  if (rowsActuales && rowsActuales.length > 1) {
-    const [hdr, ...data] = rowsActuales;
-    const iCod = hdr.indexOf('codigo');
-    data.forEach(r => { if (r[iCod]) codigosEnSheets.add(String(r[iCod])); });
+  return [...fromFallback, ...dispositivos];
+}
+
+// ── Asegurar que todos los productos del catálogo maestro estén en STOCK_DATA ──
+// Se ejecuta automáticamente al cargar — agrega productos faltantes con stock=0,
+// nunca sobreescribe stock existente.
+function asegurarCatalogoCompleto() {
+  const catalogo = getCatalogoMaestro();
+  const codigosEnStock = new Set(STOCK_DATA.map(p => p.codigo));
+  const faltantes = catalogo.filter(p => !codigosEnStock.has(p.codigo));
+  if (faltantes.length > 0) {
+    STOCK_DATA.push(...faltantes);
+    console.log(`Catálogo: agregados ${faltantes.length} productos al inventario`);
+    // Guardar en background — no bloquea la UI
+    if (gasConectado) guardarStockEnSheets();
   }
-
-  // Construir lista completa (fallback + dispositivos)
-  const header = ['codigo','nombre','lote','vence','stock','min','tipo','categoria'];
-  const todosLosProductos = [
-    ...STOCK_FALLBACK.map(p => [
-      p.codigo, p.nombre, p.lote||'', p.vence||'',
-      p.stock||0, p.min||0, p.tipo||'medicamento', p.categoria||'enfermeria'
-    ]),
-    ['CT-24',    'Catéter 24G','','',0,100,'dispositivo','enfermeria'],
-    ['CT-22',    'Catéter 22G','','',0,50,'dispositivo','enfermeria'],
-    ['MC-MAC',   'Macrogotero 10G','','',0,100,'dispositivo','enfermeria'],
-    ['JR-20',    'Jeringa 20ml','','',0,50,'dispositivo','enfermeria'],
-    ['JR-05',    'Jeringa 5ml','','',0,50,'dispositivo','enfermeria'],
-    ['GS-10',    'Gasa estéril 10x10x2un','','',0,50,'dispositivo','enfermeria'],
-    ['SN-NEL',   'Sonda Nelaton 18Fr','','',0,10,'dispositivo','enfermeria'],
-    ['RC-15',    'Recolector Guardian 1.5L','','',0,5,'dispositivo','enfermeria'],
-    ['RC-29',    'Recolector Guardian 2.9L','','',0,5,'dispositivo','enfermeria'],
-    ['AG-25',    'Aguja 25G / Venocat','','',0,50,'dispositivo','enfermeria'],
-    ['EP-01',    'Tegaderm / Esparadrapo','','',0,50,'dispositivo','enfermeria'],
-    ['SN-VAG',   'Sonda vaginal','','',0,10,'dispositivo','enfermeria'],
-    ['LN-01',    'Lanceta x50 uds','','',0,2,'dispositivo','enfermeria'],
-    ['TG-01',    'Tira glucómetro x50und','','',0,2,'dispositivo','enfermeria'],
-    ['BT-01',    'Bata paciente SMS desechable','','',0,50,'dispositivo','enfermeria'],
-    ['TL-ALC',   'Toallita alcoholada isop.70%','','',0,5,'dispositivo','enfermeria'],
-    ['GN-NIL-S', 'Guante nitrilo azul S','','',0,5,'dispositivo','enfermeria'],
-    ['GN-NIL-L', 'Guante nitrilo azul L','','',0,2,'dispositivo','enfermeria'],
-    ['GN-EST',   'Guante estéril 6.5','','',0,5,'dispositivo','enfermeria'],
-    ['TL-CAM',   'Tela camilla azul 50x100m','','',0,2,'dispositivo','enfermeria'],
-    ['AL-01',    'Algodón motas x500gr','','',0,2,'dispositivo','enfermeria'],
-    ['CR-AD',    'Cura redonda adulto x100und','','',0,2,'dispositivo','enfermeria'],
-    ['BL-PL',    'Bolsa plástica grande','','',0,5,'dispositivo','enfermeria'],
-    ['TP-AZ',    'Tapaboca azul desechable','','',0,3,'dispositivo','enfermeria'],
-    ['OX-MED',   'Oxígeno medicinal','','',0,1,'gas','enfermeria'],
-    ['VX-KIT',   'Kit de ozono Vidox','','',0,6,'dispositivo','enfermeria'],
-    ['VX-REC',   'Manguera rectal Vidox','','',0,3,'dispositivo','enfermeria'],
-    ['VX-VAL',   'Válvula antirretorno Vidox','','',0,4,'dispositivo','enfermeria'],
-    ['VX-OZS',   'Kit ozonizador de sueros Vidox','','',0,2,'dispositivo','enfermeria'],
-    ['VX-VAG',   'Kit insuflación vaginal Vidox','','',0,3,'dispositivo','enfermeria'],
-  ];
-
-  // Solo agregar los que NO existen en Sheets
-  const nuevos = todosLosProductos.filter(r => !codigosEnSheets.has(String(r[0])));
-
-  if (nuevos.length === 0) {
-    mostrarToast('✅ Catálogo completo', 'Todos los productos ya están en Sheets', 'verde');
-    if (btn) { btn.disabled = false; btn.textContent = 'Carga inicial stock'; }
-    return;
-  }
-
-  // Construir filas completas: las actuales + las nuevas
-  const rowsFinales = rowsActuales && rowsActuales.length > 1
-    ? [...rowsActuales, ...nuevos]
-    : [header, ...todosLosProductos];
-
-  const ok = await gasWrite('Stock', rowsFinales);
-  if (ok) {
-    mostrarToast('✅ Catálogo actualizado', `${nuevos.length} producto(s) nuevo(s) agregado(s)`, 'verde');
-    await sincronizarSheets();
-    buildCatalogo();
-  } else {
-    mostrarToast('❌ Error', 'No se pudo escribir en Sheets', 'rojo');
-  }
-  if (btn) { btn.disabled = false; btn.textContent = 'Carga inicial stock'; }
 }
 
 function buildCatalogo() {
   const cont = document.getElementById('catalogo-tbody')?.closest('.table-card') || document.getElementById('catalogo-container');
   const tbody = document.getElementById('catalogo-tbody');
   if (!tbody) return;
-
-  // Mostrar botón carga inicial solo para admin
-  const btnCarga = document.getElementById('btn-carga-inicial');
-  if (btnCarga) {
-    btnCarga.style.display = currentUser?.id === 'admin' ? '' : 'none';
-  }
 
   if (typeof catalogoFiltro === 'undefined') window.catalogoFiltro = 'todos';
   if (typeof catalogoCategoria === 'undefined') window.catalogoCategoria = 'todos';
