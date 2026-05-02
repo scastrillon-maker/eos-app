@@ -6354,6 +6354,10 @@ function renderPedidoAlfa() {
     return ({'A':0,'B':1,'C':2}[a.abc]??3) - ({'A':0,'B':1,'C':2}[b.abc]??3);
   });
 
+  // Productos ya incluidos en un pedido pendiente de Farmacia Alfa
+  const pedidoPendienteAlfa = PEDIDOS_ENVIADOS.find(p => p.proveedor === 'Farmacia Alfa' && (p.estado === 'pendiente' || p.estado === 'recibido_parcial'));
+  const codigosYaPedidosAlfa = new Set(pedidoPendienteAlfa ? pedidoPendienteAlfa.items.map(i => i.codigo) : []);
+
   tbody.innerHTML = alfaOrdenado.map(p => {
     const sel    = pedidoAlfaItems[p.codigo] || { incluir:false, cantidad:0 };
     const precio = usaPrecioEOS ? (p.pcostoEOS || p.precio) : p.precio;
@@ -6363,19 +6367,26 @@ function renderPedidoAlfa() {
     const precioLabel = usaPrecioEOS
       ? `<span style="font-weight:700;color:var(--verde)">$${precio.toLocaleString('es-CO')}</span><span style="font-size:10px;color:var(--verde);margin-left:3px">★EOS</span>`
       : `$${precio.toLocaleString('es-CO')}<span style="font-size:10px;color:var(--gris);margin-left:3px">médico</span>`;
+    const yaPedido = codigosYaPedidosAlfa.has(p.codigo);
+    const cantidadCell = yaPedido
+      ? `<span style="font-size:11px;font-weight:700;color:var(--azul);background:var(--azul-l);padding:4px 8px;border-radius:6px">⏳ Ya pedido</span>`
+      : `<input type="number" min="0" value="${sel.cantidad}"
+          onchange="updatePedidoAlfa('${p.codigo}',this.value)"
+          style="width:70px;padding:6px;border:1.5px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px;text-align:center"/>`;
+    const checkCell = yaPedido
+      ? `<span style="font-size:16px">✅</span>`
+      : `<input type="checkbox" ${sel.incluir?'checked':''}
+          onchange="togglePedidoAlfa('${p.codigo}',this.checked)"
+          style="width:18px;height:18px;cursor:pointer"/>`;
     return `<tr style="${rowBg}">
       <td style="font-weight:500">${p.nombre}</td>
       <td><strong>${p.stock}</strong> uds</td>
       <td>${p.min} uds</td>
       <td>${badge}</td>
-      <td><input type="number" min="0" value="${sel.cantidad}"
-        onchange="updatePedidoAlfa('${p.codigo}',this.value)"
-        style="width:70px;padding:6px;border:1.5px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px;text-align:center"/></td>
+      <td>${cantidadCell}</td>
       <td>${precioLabel}</td>
-      <td style="font-weight:600">$${sub.toLocaleString('es-CO')}</td>
-      <td><input type="checkbox" ${sel.incluir?'checked':''}
-        onchange="togglePedidoAlfa('${p.codigo}',this.checked)"
-        style="width:18px;height:18px;cursor:pointer"/></td>
+      <td style="font-weight:600">${yaPedido ? '—' : '$'+sub.toLocaleString('es-CO')}</td>
+      <td>${checkCell}</td>
     </tr>`;
   }).join('');
 
@@ -6410,24 +6421,33 @@ function renderPedidoOtros() {
 
   contenedor.innerHTML = Object.entries(porProveedor).map(([prov, productos]) => {
     const productoOrdenados = ordenarProductos(productos);
+    const pedidoPendienteProv = PEDIDOS_ENVIADOS.find(pe => pe.proveedor === prov && (pe.estado === 'pendiente' || pe.estado === 'recibido_parcial'));
+    const codigosYaPedidosProv = new Set(pedidoPendienteProv ? pedidoPendienteProv.items.map(i => i.codigo) : []);
     const filas = productoOrdenados.map(p => {
       const sel   = pedidoOtrosItems[p.codigo] || { incluir:false, cantidad:0 };
       const sub   = sel.incluir ? sel.cantidad * p.precio : 0;
       const badge = getEstadoBadge(p.stock, p.min);
       const rowBg = p.stock < p.min * 0.5 ? 'background:var(--rojo-l)' : p.stock < p.min ? 'background:var(--amber-l)' : '';
+      const yaPedido = codigosYaPedidosProv.has(p.codigo);
       return `<tr style="${rowBg}">
         <td style="font-weight:500">${p.nombre}</td>
         <td><strong>${p.stock}</strong> uds</td>
         <td>${p.min} uds</td>
         <td>${badge}</td>
-        <td><input type="number" min="0" value="${sel.cantidad}"
-          onchange="updatePedidoOtros('${p.codigo}',this.value,'${prov}')"
-          style="width:70px;padding:6px;border:1.5px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px;text-align:center"/></td>
+        <td>${yaPedido
+          ? '<span style="font-size:11px;font-weight:700;color:var(--azul);background:var(--azul-l);padding:4px 8px;border-radius:6px">⏳ Ya pedido</span>'
+          : `<input type="number" min="0" value="${sel.cantidad}"
+              onchange="updatePedidoOtros('${p.codigo}',this.value,'${prov}')"
+              style="width:70px;padding:6px;border:1.5px solid var(--gris-m);border-radius:6px;font-family:var(--font-body);font-size:13px;text-align:center"/>`
+        }</td>
         <td>$${p.precio.toLocaleString('es-CO')}</td>
-        <td style="font-weight:600" id="sub-${p.codigo}">$${sub.toLocaleString('es-CO')}</td>
-        <td><input type="checkbox" ${sel.incluir?'checked':''}
-          onchange="togglePedidoOtros('${p.codigo}',this.checked)"
-          style="width:18px;height:18px;cursor:pointer"/></td>
+        <td style="font-weight:600" id="sub-${p.codigo}">${yaPedido ? '—' : '$'+sub.toLocaleString('es-CO')}</td>
+        <td>${yaPedido
+          ? '<span style="font-size:16px">✅</span>'
+          : `<input type="checkbox" ${sel.incluir?'checked':''}
+              onchange="togglePedidoOtros('${p.codigo}',this.checked)"
+              style="width:18px;height:18px;cursor:pointer"/>`
+        }</td>
       </tr>`;
     }).join('');
 
