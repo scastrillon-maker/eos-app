@@ -11072,7 +11072,10 @@ function buildStock(filtroActivo) {
   }
 
   // ── Filtrar datos ──
-  let datos = STOCK_DATA;
+  // Filtrar placeholders del catálogo (filas sin lote y stock=0) cuando ya hay stock real del mismo código
+  const codigosConStock = new Set();
+  STOCK_DATA.forEach(p => { if (p.stock > 0) codigosConStock.add(p.codigo); });
+  let datos = STOCK_DATA.filter(p => !(p.stock === 0 && !p.lote && codigosConStock.has(p.codigo)));
 
   // Primero filtrar por lo que puede ver cada rol (basado en TIPO, más robusto que categoria)
   if (isEnf)   datos = STOCK_DATA.filter(p => p.tipo === 'medicamento' || p.tipo === 'dispositivo' || p.tipo === 'gas');
