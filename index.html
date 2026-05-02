@@ -11758,8 +11758,7 @@ function continuarSinRegistrar() {
   completarRegistroSesion();
 }
 
-function completarRegistroSesion() {
-  const adicionales = getAmollasAdicionales();
+async function completarRegistroSesion() {  const adicionales = getAmollasAdicionales();
 
   // Descontar stock de ampollas principales
   selectedAmpollas.forEach(nombreAmp => {
@@ -11855,9 +11854,11 @@ function completarRegistroSesion() {
     mostrarToast('⚠️ Insumos sin stock', insumosFaltantes.join(', '), 'amber');
   }
 
-  guardarStockEnSheets();
-  guardarAuditoriaEnSheets();
-  guardarSesionesEnSheets();
+  await Promise.all([
+    guardarStockEnSheets(),
+    guardarAuditoriaEnSheets(),
+    guardarSesionesEnSheets(),
+  ]);
   closeModal('modal-nueva-sesion');
   resetAdicionales();
   const toastMsg = todasAmpollas.length > 0
