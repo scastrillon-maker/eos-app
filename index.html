@@ -5482,7 +5482,15 @@ function renderPedidosPendientes() {
   const pendientes = PEDIDOS_ENVIADOS
     .filter(p => p.estado === 'pendiente' || p.estado === 'recibido_parcial')
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  if (pendientes.length === 0) { cont.innerHTML = ''; return; }
+  if (pendientes.length === 0) {
+    // Si Sheets aún no ha cargado, mostrar indicador de espera
+    if (!gasConectado) {
+      cont.innerHTML = `<div style="background:var(--azul-l);border:1.5px solid var(--azul);border-radius:12px;padding:16px;margin-bottom:20px;color:var(--azul);font-size:13px;font-weight:600">⏳ Cargando pedidos pendientes...</div>`;
+    } else {
+      cont.innerHTML = '';
+    }
+    return;
+  }
   cont.innerHTML = `
     <div style="background:var(--azul-l);border:1.5px solid var(--azul);border-radius:12px;padding:16px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;color:var(--azul);margin-bottom:12px">📦 Pedidos enviados — pendientes de recepción</div>
