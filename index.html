@@ -12506,6 +12506,7 @@ async function registrarEntrada() {
   }
 
   entradaItems.forEach(item => {
+    console.log('🟢 Procesando entrada:', item.codigo, 'cant:', item.cantRecibida, 'lote:', item.lote);
     // 1. Buscar por código + lote exacto para respetar trazabilidad FEFO
     let prod = null;
 
@@ -12517,6 +12518,7 @@ async function registrarEntrada() {
       // Sin lote: buscar fila sin lote del mismo código
       prod = STOCK_DATA.find(p => p.codigo === item.codigo && !p.lote);
     }
+    console.log('🟢 Producto encontrado:', prod ? `${prod.codigo} stock actual=${prod.stock}` : 'NO existe — crear nuevo');
 
     if (!prod) {
       // Lote nuevo o producto nuevo — crear fila nueva en STOCK_DATA
@@ -12541,6 +12543,7 @@ async function registrarEntrada() {
     }
     if (prod) {
       prod.stock += item.cantRecibida;
+      console.log('🟢 Stock actualizado:', prod.codigo, 'lote:', prod.lote, 'nuevo stock:', prod.stock);
       // Solo actualizar vencimiento si el lote coincide exactamente
       if (item.vencimiento) prod.vence = item.vencimiento;
     } else {
@@ -12614,10 +12617,13 @@ async function registrarEntrada() {
   entradaItems = [];
   buildStats();
   renderPedidosPendientes();
+  console.log('🟢 STOCK_DATA antes de guardar:', STOCK_DATA.filter(p => p.codigo === 'CT-24'));
   await guardarStockEnSheets();
+  console.log('🟢 Guardado en Sheets completado');
   guardarPedidosEnSheets();
   guardarAuditoriaEnSheets();
   buildStock();
+  console.log('🟢 buildStock ejecutado');
 
   // Solo mencionar actas si hay productos regulados (medicamentos, dispositivos, gases)
   const isEnfermera = ['enf1','enf2'].includes(currentUser?.id);
