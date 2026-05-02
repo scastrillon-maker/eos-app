@@ -12046,7 +12046,7 @@ function renderRecepcionAdmin(pedidos) {
   if (!cont) return;
 
   cont.innerHTML = pedidos.map(ped => {
-    const fechaLabel = ped.fecha ? new Date(ped.fecha).toLocaleDateString('es-CO',{day:'numeric',month:'long'}) : '—';
+    const [fy,fm,fd] = (ped.fecha||'').split('-'); const fechaLabel = ped.fecha ? new Date(+fy,+fm-1,+fd).toLocaleDateString('es-CO',{day:'numeric',month:'long'}) : '—';
     return `
       <div style="background:var(--gris-l);border-radius:10px;padding:14px 16px;margin-bottom:12px;cursor:pointer;border:2px solid transparent"
            onclick="seleccionarPedidoRecepcion('${ped.id}')"
