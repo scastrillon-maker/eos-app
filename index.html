@@ -11174,21 +11174,27 @@ function filtrarCatalogo(filtro, btn) {
 // CARGA INICIAL DE STOCK — solo admin, solo una vez
 // ══════════════════════════════════════════════
 async function cargarStockInicial() {
-  if (!confirm('¿Cargar el stock completo en Sheets? Esta acción reemplaza el stock actual.')) return;
+  if (!confirm('¿Sincronizar catálogo con Sheets? Solo agrega productos faltantes, no borra el stock existente.')) return;
 
   const btn = document.getElementById('btn-carga-inicial');
-  if (btn) { btn.disabled = true; btn.textContent = 'Cargando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
 
-  // Tomar todos los productos del STOCK_FALLBACK (HEEL, Alfa, Nutrabiotics, salinas)
+  // Leer lo que ya hay en Sheets
+  const rowsActuales = await gasRead('Stock');
+  const codigosEnSheets = new Set();
+  if (rowsActuales && rowsActuales.length > 1) {
+    const [hdr, ...data] = rowsActuales;
+    const iCod = hdr.indexOf('codigo');
+    data.forEach(r => { if (r[iCod]) codigosEnSheets.add(String(r[iCod])); });
+  }
+
+  // Construir lista completa (fallback + dispositivos)
   const header = ['codigo','nombre','lote','vence','stock','min','tipo','categoria'];
-  const desdeFallback = STOCK_FALLBACK.map(p => [
-    p.codigo, p.nombre, p.lote||'', p.vence||'',
-    p.stock||0, p.min||0, p.tipo||'medicamento', p.categoria||'enfermeria'
-  ]);
-
-  // Dispositivos Tecnomedica con códigos internos nuevos
-  const codigosFallback = new Set(STOCK_FALLBACK.map(p => p.codigo));
-  const dispositivos = [
+  const todosLosProductos = [
+    ...STOCK_FALLBACK.map(p => [
+      p.codigo, p.nombre, p.lote||'', p.vence||'',
+      p.stock||0, p.min||0, p.tipo||'medicamento', p.categoria||'enfermeria'
+    ]),
     ['CT-24',    'Catéter 24G','','',0,100,'dispositivo','enfermeria'],
     ['CT-22',    'Catéter 22G','','',0,50,'dispositivo','enfermeria'],
     ['MC-MAC',   'Macrogotero 10G','','',0,100,'dispositivo','enfermeria'],
@@ -11219,20 +11225,31 @@ async function cargarStockInicial() {
     ['VX-VAL',   'Válvula antirretorno Vidox','','',0,4,'dispositivo','enfermeria'],
     ['VX-OZS',   'Kit ozonizador de sueros Vidox','','',0,2,'dispositivo','enfermeria'],
     ['VX-VAG',   'Kit insuflación vaginal Vidox','','',0,3,'dispositivo','enfermeria'],
-  ].filter(r => !codigosFallback.has(r[0]));
+  ];
 
-  const rows = [header, ...desdeFallback, ...dispositivos];
+  // Solo agregar los que NO existen en Sheets
+  const nuevos = todosLosProductos.filter(r => !codigosEnSheets.has(String(r[0])));
 
-  const ok = await gasWrite('Stock', rows);
+  if (nuevos.length === 0) {
+    mostrarToast('✅ Catálogo completo', 'Todos los productos ya están en Sheets', 'verde');
+    if (btn) { btn.disabled = false; btn.textContent = 'Carga inicial stock'; }
+    return;
+  }
+
+  // Construir filas completas: las actuales + las nuevas
+  const rowsFinales = rowsActuales && rowsActuales.length > 1
+    ? [...rowsActuales, ...nuevos]
+    : [header, ...todosLosProductos];
+
+  const ok = await gasWrite('Stock', rowsFinales);
   if (ok) {
-    mostrarToast('✅ Stock cargado', `${rows.length - 1} productos en Sheets`, 'verde');
-    if (btn) btn.style.display = 'none';
+    mostrarToast('✅ Catálogo actualizado', `${nuevos.length} producto(s) nuevo(s) agregado(s)`, 'verde');
     await sincronizarSheets();
     buildCatalogo();
   } else {
     mostrarToast('❌ Error', 'No se pudo escribir en Sheets', 'rojo');
-    if (btn) { btn.disabled = false; btn.textContent = 'Carga inicial stock'; }
   }
+  if (btn) { btn.disabled = false; btn.textContent = 'Carga inicial stock'; }
 }
 
 function buildCatalogo() {
