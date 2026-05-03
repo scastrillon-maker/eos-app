@@ -12054,13 +12054,20 @@ function abrirEntradaMercancia() {
     return;
   }
 
-  // Enfermeras → flujo basado en pedidos pendientes de Farmacia Alfa, Tecnomedica, Vidox, Bioxigen
-  const proveedoresEnf = ['Farmacia Alfa', 'Tecnomedica', 'Vidox / Bidox', 'Bioxigen'];
+  // Enfermeras → pedidos de sus proveedores + items tipo medicamento/dispositivo/gas de cualquier proveedor
+  const proveedoresEnf = ['Farmacia Alfa', 'Tecnomedica', 'Vidox / Bidox', 'Bioxigen', 'Nutrabiotics', 'Solaris', 'Biorthmol', 'Progurt'];
   console.log('PEDIDOS_ENVIADOS total:', PEDIDOS_ENVIADOS.length, PEDIDOS_ENVIADOS.map(p => p.proveedor + '/' + p.estado));
   const pedidosPend = PEDIDOS_ENVIADOS.filter(p =>
     (p.estado === 'pendiente' || p.estado === 'recibido_parcial') &&
     proveedoresEnf.includes(p.proveedor)
-  );
+  ).map(p => ({
+    ...p,
+    // Enfermería solo recibe items tipo medicamento, dispositivo o gas
+    items: p.items.filter(item => {
+      const tipo = getTipoProducto(item.codigo, p.proveedor);
+      return tipo === 'medicamento' || tipo === 'dispositivo' || tipo === 'gas';
+    })
+  })).filter(p => p.items.length > 0);
 
   if (pedidosPend.length > 0) {
     // Hay pedidos pendientes → mostrar modal de recepción basado en pedido
@@ -12103,10 +12110,10 @@ function abrirEntradaAdmin() {
     proveedoresSupl.includes(p.proveedor)
   ).map(p => ({
     ...p,
-    // Excluir items que recibe enfermería (A-LipoR IV, BLUESSENS viales)
+    // Admin solo recibe items tipo suplemento
     items: p.items.filter(item => {
-      const ref = PEDIDO_OTROS.find(r => r.codigo === item.codigo);
-      return !ref || ref.categoria !== 'enfermeria';
+      const tipo = getTipoProducto(item.codigo, p.proveedor);
+      return tipo === 'suplemento';
     })
   })).filter(p => p.items.length > 0);
   console.log('Pedidos supl pendientes:', pedidosPend.length);
